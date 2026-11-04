@@ -25,8 +25,20 @@ export const REASON_LABEL: Record<CutReason, string> = {
   filler: "filler",
   false_start: "false start",
   repeat: "repeat",
-  self_correction: "corrected",
+  self_correction: "correction",
 };
+
+const REASON_PLURAL: Record<CutReason, string> = {
+  filler: "fillers",
+  false_start: "false starts",
+  repeat: "repeats",
+  self_correction: "corrections",
+};
+
+/** "1 filler", "2 corrections" */
+export function reasonCount(reason: CutReason, count: number): string {
+  return `${count} ${count === 1 ? REASON_LABEL[reason] : REASON_PLURAL[reason]}`;
+}
 
 /** How many cuts were made for each reason ("um, so" is one filler cut), for the footer. */
 export function cutCounts(result: CleanResult): { reason: CutReason; count: number }[] {

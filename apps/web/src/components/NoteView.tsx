@@ -1,7 +1,7 @@
 import { useState, type KeyboardEvent } from "react";
 import type { CleanResult, Flag, ItemKind, NoteItem, ResolvedDate, Span } from "../api";
 import { placeDates } from "../lib/dates";
-import { cutCounts, REASON_LABEL } from "../lib/marks";
+import { cutCounts, reasonCount } from "../lib/marks";
 import { formatSeconds } from "../lib/format";
 
 interface Props {
@@ -124,7 +124,7 @@ export function NoteView({ result, onPoint, onPlay, restoringCount, onReclean, b
         </p>
         <p className="receipt-detail">
           {cutCounts(result)
-            .map((c) => `${c.count} ${REASON_LABEL[c.reason]}${c.count === 1 ? "" : "s"}`)
+            .map((c) => reasonCount(c.reason, c.count))
             .join(" · ")}{" "}
           cut · {dateCount > 0 && `${dateCount} ${dateCount === 1 ? "date" : "dates"} worked out by code · `}cleaned in{" "}
           {formatSeconds(result.elapsedMs)}

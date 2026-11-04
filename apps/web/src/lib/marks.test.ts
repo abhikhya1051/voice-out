@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CleanResult } from "../api";
-import { cutCounts, wordMarks } from "./marks";
+import { cutCounts, reasonCount, wordMarks } from "./marks";
 
 const result: CleanResult = {
   dates: [],
@@ -38,5 +38,13 @@ describe("cutCounts", () => {
       { reason: "filler", count: 1 },
       { reason: "self_correction", count: 1 },
     ]);
+  });
+});
+
+describe("reasonCount", () => {
+  it("pluralizes each reason properly", () => {
+    expect(reasonCount("self_correction", 2)).toBe("2 corrections");
+    expect(reasonCount("self_correction", 1)).toBe("1 correction");
+    expect(reasonCount("false_start", 3)).toBe("3 false starts");
   });
 });

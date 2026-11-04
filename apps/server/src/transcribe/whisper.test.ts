@@ -71,6 +71,21 @@ describe("parseWhisperJson", () => {
     expect(t.segments.map((s) => [s.firstWord, s.endWord])).toEqual([[0, 5], [5, 8], [8, 10]]);
   });
 
+  it("splits a long run-on segment at pauses and commas when there's no sentence end", () => {
+    // 20 words over ~25s, one period at the very end, with a 700ms pause after word 5
+    const words = Array.from({ length: 20 }, (_, i) => (i === 19 ? "end." : i === 11 ? "word," : `w${i}`));
+    let t = 0;
+    const tokens = words.map((w, i) => {
+      const from = t;
+      t += 1200 + (i === 5 ? 700 : 0);
+      return tok(` ${w}`, from, from + 1000);
+    });
+    const out = parseWhisperJson(JSON.stringify({ transcription: [{ offsets: { from: 0, to: t }, text: words.join(" "), tokens }] }));
+    expect(out.segments.length).toBeGreaterThanOrEqual(3);
+    expect(out.segments[0]!.endWord).toBe(6); // broke at the pause after w5
+    expect(out.segments.at(-1)!.endWord).toBe(20);
+  });
+
   it("handles empty output", () => {
     expect(parseWhisperJson("{}")).toEqual({ text: "", words: [], segments: [] });
   });

@@ -51,8 +51,15 @@ const SPECIAL = /<\|[^|>]*\|>|\[_[A-Z0-9_]*\]/g;
 /** A word that is only a dash: Whisper's "new speaker" marker, not speech. */
 const DASH_ONLY = /^[-–—]+$/;
 
-/** Long Whisper segments get split at sentence ends once a line has run this long. */
+/**
+ * Long Whisper segments become several timed lines. Once a line has run LINE_SPLIT_MS it breaks
+ * at a sentence end or a pause; after LINE_COMMA_MS a comma will do; after LINE_MAX_MS any word.
+ */
 const LINE_SPLIT_MS = 5000;
+const LINE_COMMA_MS = 9000;
+const LINE_MAX_MS = 14000;
+/** Silence between two words that counts as a pause in speech. */
+const PAUSE_MS = 600;
 
 /**
  * Turns whisper.cpp's full JSON (-ojf) into words with timestamps.
@@ -108,8 +115,14 @@ export function parseWhisperJson(raw: string): Omit<Transcript, "elapsedMs"> {
     for (let i = firstWord; i < words.length; i++) {
       const w = words[i]!;
       const isLast = i === words.length - 1;
-      const longEnough = w.endMs - words[lineStart]!.startMs >= LINE_SPLIT_MS;
-      if (isLast || (longEnough && /[.!?]["')\]]?$/.test(w.text))) {
+      const runMs = w.endMs - words[lineStart]!.startMs;
+      const next = words[i + 1];
+      const pause = next ? next.startMs - w.endMs >= PAUSE_MS : false;
+      const breakHere =
+        (runMs >= LINE_SPLIT_MS && (/[.!?]["')\]]?$/.test(w.text) || pause)) ||
+        (runMs >= LINE_COMMA_MS && /[,;:]$/.test(w.text)) ||
+        runMs >= LINE_MAX_MS;
+      if (isLast || breakHere) {
         const lineWords = words.slice(lineStart, i + 1);
         segments.push({
           startMs: lineStart === firstWord ? segStart : lineWords[0]!.startMs,
