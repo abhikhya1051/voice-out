@@ -9,7 +9,7 @@ Talk into your mic the way you'd leave yourself a voice memo, fillers, false sta
 </p>
 
 <p align="center">
-  <a href="docs/voice-out-demo.mp4"><b>▶ Watch the walkthrough (1:14, with sound)</b></a>
+  <a href="docs/voice-out-demo.mp4"><b>▶ Watch the walkthrough (1:37, with sound)</b></a>
   ·
   <a href="#try-it-in-one-command">Try it in one command</a>
   ·
@@ -19,14 +19,14 @@ Talk into your mic the way you'd leave yourself a voice memo, fillers, false sta
 </p>
 
 <p align="center">
-  <a href="https://github.com/GITHUB_USERNAME/voice-out/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/GITHUB_USERNAME/voice-out/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/abhikhya1051/voice-out/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/abhikhya1051/voice-out/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178c6">
   <img alt="Tests" src="https://img.shields.io/badge/tests-72%20passing-2f7d4f">
   <img alt="Facts invented" src="https://img.shields.io/badge/facts%20invented%20in%20evals-0-2f7d4f">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-lightgrey">
 </p>
 
-> **A portfolio project by [@GITHUB_USERNAME](https://github.com/GITHUB_USERNAME).** Voice Out is a working app, built to explore one question: *how do you make an AI's edits to your own words trustworthy?* See [what it demonstrates](#what-this-project-demonstrates).
+> **A portfolio project by [@abhikhya1051](https://github.com/abhikhya1051).** Voice Out is a working app, built to explore one question: *how do you make an AI's edits to your own words trustworthy?* See [what it demonstrates](#what-this-project-demonstrates).
 
 ---
 
@@ -94,7 +94,7 @@ A real 31-second memo (the one in the video and in [`demo/`](demo)), recorded on
 No Whisper, no API key:
 
 ```bash
-git clone https://github.com/GITHUB_USERNAME/voice-out.git
+git clone https://github.com/abhikhya1051/voice-out.git
 cd voice-out
 npm install
 npm run demo        # open http://localhost:5173 and press the mic
@@ -274,4 +274,4 @@ TypeScript (strict) · React 18 + Vite · Fastify · whisper.cpp + ffmpeg · Cla
 
 ## License
 
-[MIT](LICENSE) © GITHUB_USERNAME
+[MIT](LICENSE) © abhikhya1051
