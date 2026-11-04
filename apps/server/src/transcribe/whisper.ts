@@ -46,6 +46,13 @@ interface WhisperJson {
 }
 
 const NON_SPEECH = /^[[(].*[\])]$/;
+/** Whisper's internal markers: <|endoftext|>, <|0.00|>, [_BEG_], [_TT_120] */
+const SPECIAL = /<\|[^|>]*\|>|\[_[A-Z0-9_]*\]/g;
+/** A word that is only a dash: Whisper's "new speaker" marker, not speech. */
+const DASH_ONLY = /^[-–—]+$/;
+
+/** Long Whisper segments get split at sentence ends once a line has run this long. */
+const LINE_SPLIT_MS = 5000;
 
 /**
  * Turns whisper.cpp's full JSON (-ojf) into words with timestamps.
@@ -59,13 +66,15 @@ export function parseWhisperJson(raw: string): Omit<Transcript, "elapsedMs"> {
   const segments: Segment[] = [];
 
   for (const seg of data.transcription ?? []) {
-    const segText = seg.text.trim();
+    const segText = seg.text.replace(SPECIAL, "").trim();
     if (!segText || NON_SPEECH.test(segText)) continue;
     const segStart = seg.offsets?.from ?? 0;
     const segEnd = seg.offsets?.to ?? segStart;
     const firstWord = words.length;
 
-    const tokens = (seg.tokens ?? []).filter((t) => t.text && !t.text.startsWith("[_") && !NON_SPEECH.test(t.text.trim()));
+    const tokens = (seg.tokens ?? [])
+      .map((t) => ({ ...t, text: t.text.replace(SPECIAL, "") }))
+      .filter((t) => t.text && !NON_SPEECH.test(t.text.trim()));
     if (tokens.length > 0) {
       for (const tok of tokens) {
         const from = tok.offsets?.from ?? segStart;
@@ -87,14 +96,30 @@ export function parseWhisperJson(raw: string): Omit<Transcript, "elapsedMs"> {
       );
     }
 
-    if (words.length > firstWord) {
-      segments.push({
-        startMs: segStart,
-        endMs: segEnd,
-        text: words.slice(firstWord).map((w) => w.text).join(" "),
-        firstWord,
-        endWord: words.length,
-      });
+    // Drop dash-only "words" (speaker-turn markers) and strip a dash glued to the front of a word
+    for (let i = words.length - 1; i >= firstWord; i--) {
+      const w = words[i]!;
+      w.text = w.text.replace(/^[-–—]+(?=\w)/, "");
+      if (!w.text || DASH_ONLY.test(w.text)) words.splice(i, 1);
+    }
+
+    // One Whisper segment can cover 20+ seconds; give each sentence-ish chunk its own line and timestamp
+    let lineStart = firstWord;
+    for (let i = firstWord; i < words.length; i++) {
+      const w = words[i]!;
+      const isLast = i === words.length - 1;
+      const longEnough = w.endMs - words[lineStart]!.startMs >= LINE_SPLIT_MS;
+      if (isLast || (longEnough && /[.!?]["')\]]?$/.test(w.text))) {
+        const lineWords = words.slice(lineStart, i + 1);
+        segments.push({
+          startMs: lineStart === firstWord ? segStart : lineWords[0]!.startMs,
+          endMs: isLast ? segEnd : w.endMs,
+          text: lineWords.map((x) => x.text).join(" "),
+          firstWord: lineStart,
+          endWord: i + 1,
+        });
+        lineStart = i + 1;
+      }
     }
   }
 

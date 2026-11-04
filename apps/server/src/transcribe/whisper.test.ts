@@ -46,6 +46,31 @@ describe("parseWhisperJson", () => {
     ]);
   });
 
+  it("drops Whisper's internal markers and speaker-turn dashes", () => {
+    const t = parseWhisperJson(
+      JSON.stringify({
+        transcription: [
+          {
+            offsets: { from: 0, to: 2000 },
+            text: " - Hey, plan the trip.<|endoftext|>",
+            tokens: [tok(" -", 0, 100), tok(" Hey", 100, 400), tok(",", 400, 450), tok(" plan", 500, 800), tok(" the", 800, 900), tok(" trip", 900, 1300), tok(".", 1300, 1350), tok("<|endoftext|>", 2000, 2000)],
+          },
+        ],
+      }),
+    );
+    expect(t.words.map((w) => w.text)).toEqual(["Hey,", "plan", "the", "trip."]);
+    expect(t.text).toBe("Hey, plan the trip.");
+  });
+
+  it("splits a long segment into lines at sentence ends, each with its own timestamp", () => {
+    const words = ["The", "gang", "should", "meet", "Thursday.", "No,", "scratch", "that.", "Maybe", "Friday."];
+    const tokens = words.map((w, i) => tok(` ${w}`, i * 2000, i * 2000 + 1500));
+    const t = parseWhisperJson(JSON.stringify({ transcription: [{ offsets: { from: 0, to: 20000 }, text: words.join(" "), tokens }] }));
+    expect(t.segments.map((s) => s.text)).toEqual(["The gang should meet Thursday.", "No, scratch that.", "Maybe Friday."]);
+    expect(t.segments.map((s) => s.startMs)).toEqual([0, 10000, 16000]);
+    expect(t.segments.map((s) => [s.firstWord, s.endWord])).toEqual([[0, 5], [5, 8], [8, 10]]);
+  });
+
   it("handles empty output", () => {
     expect(parseWhisperJson("{}")).toEqual({ text: "", words: [], segments: [] });
   });

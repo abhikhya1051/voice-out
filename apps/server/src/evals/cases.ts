@@ -59,6 +59,14 @@ export const CASES: EvalCase[] = [
     mustSay: ["green tea", "list"],
   },
   {
+    name: "gang-meetup",
+    tests: "A real recording: day correction plus an uncertainty (\"might not\") that must survive",
+    transcript:
+      "[Hey, yeah, so] I think, [you know,] the gang should meet up on [Thursday. No, scratch that.] Maybe on Friday. And I want Priya, John and Leila. [Okay,] Leila {might} {not} make it. So Priya and John will be there. [The gang has to meet up on Friday.] And we have to plan the Tahoe trip.",
+    mustSay: ["Friday", "Priya", "John", "Leila", "(might not|may not|might be unable|unsure)", "Tahoe"],
+    mustNotSay: ["Thursday"],
+  },
+  {
     name: "number-correction",
     tests: "A corrected number plus a stutter",
     transcript: "The budget is [forty, no sorry,] fifty thousand dollars [for, for] for Q3.",
