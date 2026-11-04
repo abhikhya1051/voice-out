@@ -17,13 +17,21 @@ describe("resolvePhrase", () => {
     expect(on("the day after tomorrow")).toBe("Thu, Nov 5");
   });
 
-  it("reads a plain weekday as the coming one, and 'next' as the week after", () => {
+  it("reads a plain weekday as the coming one, and 'next X' as X of next calendar week", () => {
     expect(on("Friday")).toBe("Fri, Nov 6");
     expect(on("on Friday.")).toBe("Fri, Nov 6");
     expect(on("Tuesday")).toBe("Tue, Nov 3");
     expect(on("Monday")).toBe("Mon, Nov 9");
     expect(on("next Friday")).toBe("Fri, Nov 13");
+    expect(on("next Monday")).toBe("Mon, Nov 9");
+    expect(on("next Tuesday")).toBe("Tue, Nov 10");
     expect(on("last Friday")).toBe("Fri, Oct 30");
+  });
+
+  it("reads 'the next Monday' as the first Monday coming (a real memo: due the next Monday)", () => {
+    expect(on("the next Monday.")).toBe("Mon, Nov 9");
+    expect(on("the next Tuesday")).toBe("Tue, Nov 10");
+    expect(on("the following Friday")).toBe("Fri, Nov 6");
   });
 
   it("works out 'the next day' from the day it's relative to", () => {

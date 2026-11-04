@@ -53,7 +53,9 @@ export const dateLabel = (d: Date) => `${SHORT_DAY[d.getUTCDay()]}, ${SHORT_MONT
  *   tomorrow / yesterday       -> +1 / -1; "the day after tomorrow" -> +2
  *   in N days / N days from now -> +N
  *   Friday / this Friday / on Friday -> the coming Friday (today if it is Friday)
- *   next Friday                -> the Friday after the coming one
+ *   the next Monday            -> the first Monday after today
+ *   next Friday (no "the")     -> Friday of next calendar week (weeks start Monday):
+ *                                 said on Tue Nov 3, "next Monday" = Nov 9, "next Friday" = Nov 13
  *   last Friday                -> the most recent Friday before today
  *   the next day / the day after / the following day / N days later -> anchor + 1 (or N)
  *   the day before             -> anchor - 1
@@ -106,8 +108,14 @@ export function resolvePhrase(phrase: string, recorded: Date, anchor: Date | nul
     if (has("last")) {
       return { date: addDays(recorded, ahead === 0 ? -7 : ahead - 7), basis: `the ${name} before ${recordedLabel}` };
     }
+    if (has("the", "next") || has("following")) {
+      const days = ahead === 0 ? 7 : ahead;
+      return { date: addDays(recorded, days), basis: `the first ${name} after ${recordedLabel}` };
+    }
     if (has("next")) {
-      return { date: addDays(recorded, ahead + 7), basis: `"next ${name}" read as the week after this one` };
+      // Monday of next calendar week, then the day within it
+      const nextMonday = addDays(recorded, 7 - ((recorded.getUTCDay() + 6) % 7));
+      return { date: addDays(nextMonday, (target + 6) % 7), basis: `"next ${name}" read as ${name} of next week` };
     }
     return { date: addDays(recorded, ahead), basis: ahead === 0 ? `today is ${name}` : `the coming ${name}` };
   }

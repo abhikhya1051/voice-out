@@ -79,7 +79,7 @@ mic ─▶ ffmpeg ─▶ whisper.cpp ─────────▶ words with t
 
 The result is the receipt at the bottom of every note: **"18 facts checked against your words · 0 invented"**.
 
-**4. Dates: the model links, code computes.** The model lists date phrases by word position, and for relative ones ("the next day") points at the day they hang off ("Friday"). [`dates/resolve.ts`](apps/server/src/dates/resolve.ts) turns them into calendar dates from the recording date: today/tomorrow/yesterday, weekdays ("next Friday" = the week after), "in three days", "the day before", explicit dates. Vague phrases ("ASAP", "next week") are left alone on purpose, and a day the speaker took back is never resolved. If the note says "Saturday" for "the next day", the fact check accepts it only because code worked it out.
+**4. Dates: the model links, code computes.** The model lists date phrases by word position, and for relative ones ("the next day") points at the day they hang off ("Friday"). [`dates/resolve.ts`](apps/server/src/dates/resolve.ts) turns them into calendar dates from the recording date: today/tomorrow/yesterday, weekdays ("the next Monday" = the first one coming, "next Friday" = Friday of next calendar week), "in three days", "the day before", explicit dates. Vague phrases ("ASAP", "next week") are left alone on purpose, and a day the speaker took back is never resolved. If the note says "Saturday" for "the next day", the fact check accepts it only because code worked it out.
 
 **5. Restoring is a constraint, not a suggestion.** Restored words are sent back as `mustKeep`, and the server removes them from any cut the model proposes, so a restored word can't be cut again.
 

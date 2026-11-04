@@ -102,12 +102,13 @@ export function NoteView({ result, onPoint, onPlay, restoringCount, onReclean, b
                   <label htmlFor={id} className="visually-hidden">
                     Mark done: {t.text}
                   </label>
-                  <span className={`trace${flagsFor("todo", i).length ? " is-flagged" : ""}`} {...traceable(t)}>
-                    {t.text}
-                  </span>
-                  {t.due && <span className="due">{t.due}</span>}
-                  <DateNotes dates={datesAt.get(`todo-${i}`)} />
-                  <FlagNotes flags={flagsFor("todo", i)} />
+                  <div className="todo-body">
+                    <span className={`trace${flagsFor("todo", i).length ? " is-flagged" : ""}`} {...traceable(t)}>
+                      {t.text}
+                    </span>
+                    <TodoWhen due={t.due} dates={datesAt.get(`todo-${i}`)} />
+                    <FlagNotes flags={flagsFor("todo", i)} />
+                  </div>
                 </li>
               );
             })}
@@ -135,6 +136,29 @@ export function NoteView({ result, onPoint, onPlay, restoringCount, onReclean, b
         )}
       </footer>
     </section>
+  );
+}
+
+/**
+ * A to-do's deadline. When the spoken deadline is itself a worked-out date, show it once:
+ * "the next Monday → Mon, Nov 9" instead of the words and then the same words again in a tag.
+ */
+function TodoWhen({ due, dates = [] }: { due?: string; dates?: ResolvedDate[] }) {
+  const inDue = due ? dates.find((d) => due.toLowerCase().includes(d.phrase.toLowerCase())) : undefined;
+  return (
+    <>
+      {due && (
+        <span className="due">
+          {due}
+          {inDue && (
+            <span className="due-date" title={`Worked out: ${inDue.basis}`}>
+              {" "}→ {inDue.label}
+            </span>
+          )}
+        </span>
+      )}
+      <DateNotes dates={dates.filter((d) => d !== inDue)} />
+    </>
   );
 }
 
