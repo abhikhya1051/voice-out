@@ -5,6 +5,8 @@ import { z } from "zod";
 import type { Config } from "./config.js";
 import { cleanAndCheck, type CleanResult } from "./clean/pipeline.js";
 import { cleanupErrorMessage, createCleaner } from "./clean/providers.js";
+import { saveCleanup, saveTranscript } from "./capture.js";
+import { localToday } from "./dates/resolve.js";
 import { run } from "./transcribe/run.js";
 import { transcribe as defaultTranscribe, type Transcript } from "./transcribe/whisper.js";
 
@@ -13,6 +15,8 @@ export interface AppDeps {
   clean?: (words: string[], mustKeep: number[], recordedOn?: string) => Promise<CleanResult>;
   /** Demo mode: no local tools or API key needed. */
   demo?: boolean;
+  /** Capture mode: save each recording, transcript and cleanup here (see capture.ts). */
+  captureDir?: string;
 }
 
 const CleanBody = z.object({
@@ -64,7 +68,9 @@ export function buildApp(config: Config, deps: AppDeps = {}) {
     const audio = await file.toBuffer();
     if (audio.length === 0) return reply.code(400).send({ error: "The recording is empty." });
     try {
-      return await transcribe(audio, file.filename);
+      const transcript = await transcribe(audio, file.filename);
+      if (deps.captureDir) await saveTranscript(deps.captureDir, audio, file.filename, transcript);
+      return transcript;
     } catch (err) {
       req.log.error(err);
       return reply.code(500).send({ error: err instanceof Error ? err.message : "Transcription failed." });
@@ -80,7 +86,9 @@ export function buildApp(config: Config, deps: AppDeps = {}) {
     const body = CleanBody.safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: "Send {words: string[], mustKeep?: number[], recordedOn?: \"YYYY-MM-DD\"}." });
     try {
-      return await clean(body.data.words, body.data.mustKeep, body.data.recordedOn);
+      const result = await clean(body.data.words, body.data.mustKeep, body.data.recordedOn);
+      if (deps.captureDir) await saveCleanup(deps.captureDir, result, body.data.recordedOn ?? localToday());
+      return result;
     } catch (err) {
       req.log.error(err);
       const message = cleaner ? cleanupErrorMessage(err, cleaner.provider, cleaner.model) : err instanceof Error ? err.message : "Cleanup failed.";

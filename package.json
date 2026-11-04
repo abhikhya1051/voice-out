@@ -19,7 +19,8 @@
     "lint": "eslint .",
     "setup:whisper": "bash scripts/setup-whisper.sh",
     "demo": "concurrently -n server,web -c blue,magenta \"npm run dev:demo -w @voice-out/server\" \"npm run dev -w @voice-out/web\"",
-    "eval": "npm run eval -w @voice-out/server"
+    "eval": "npm run eval -w @voice-out/server",
+    "dev:capture": "concurrently -n server,web -c blue,magenta \"npm run dev:capture -w @voice-out/server\" \"npm run dev -w @voice-out/web\""
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
