@@ -6,6 +6,9 @@ export interface Recording {
   blob: Blob;
   filename: string;
   durationMs: number;
+  recordedAt: Date;
+  /** Loudness samples 0..1 (~20 per second), used to draw the memo's ink waveform. */
+  peaks: number[];
 }
 
 /** Picks a container the browser can record: webm/opus in Chrome/Firefox, mp4/aac in Safari. */
@@ -18,12 +21,15 @@ function pickMimeType(): { mime: string; ext: string } {
   return options.find((o) => MediaRecorder.isTypeSupported(o.mime)) ?? { mime: "", ext: "webm" };
 }
 
+const PEAK_INTERVAL_MS = 50;
+
 export function useRecorder(onDone: (rec: Recording) => void) {
   const [state, setState] = useState<RecorderState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
-  const [level, setLevel] = useState(0);
 
+  /** Live peaks while recording; the waveform canvas reads this every frame. */
+  const peaksRef = useRef<number[]>([]);
   const mediaRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -38,7 +44,6 @@ export function useRecorder(onDone: (rec: Recording) => void) {
     streamRef.current = null;
     void audioCtxRef.current?.close();
     audioCtxRef.current = null;
-    setLevel(0);
   }, []);
 
   useEffect(() => cleanup, [cleanup]);
@@ -51,6 +56,7 @@ export function useRecorder(onDone: (rec: Recording) => void) {
       const { mime, ext } = pickMimeType();
       const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
       const chunks: BlobPart[] = [];
+      const recordedAt = new Date();
       recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
       recorder.onstop = () => {
         const durationMs = Date.now() - startedRef.current;
@@ -58,27 +64,36 @@ export function useRecorder(onDone: (rec: Recording) => void) {
         setState("idle");
         onDoneRef.current({
           blob: new Blob(chunks, { type: recorder.mimeType }),
-          filename: `recording-${new Date().toISOString().replace(/[:.]/g, "-")}.${ext}`,
+          filename: `recording-${recordedAt.toISOString().replace(/[:.]/g, "-")}.${ext}`,
           durationMs,
+          recordedAt,
+          peaks: [...peaksRef.current],
         });
       };
 
-      // Level meter + timer, driven by one animation loop
+      // Timer + waveform samples, driven by one animation loop
       const ctx = new AudioContext();
       audioCtxRef.current = ctx;
       const analyser = ctx.createAnalyser();
-      analyser.fftSize = 512;
+      analyser.fftSize = 1024;
       ctx.createMediaStreamSource(stream).connect(analyser);
       const buf = new Uint8Array(analyser.fftSize);
+      let windowPeak = 0;
+      let lastSample = 0;
       const tick = () => {
         analyser.getByteTimeDomainData(buf);
-        let peak = 0;
-        for (const v of buf) peak = Math.max(peak, Math.abs(v - 128) / 128);
-        setLevel(peak);
-        setElapsedMs(Date.now() - startedRef.current);
+        for (const v of buf) windowPeak = Math.max(windowPeak, Math.abs(v - 128) / 128);
+        const now = Date.now();
+        if (now - lastSample >= PEAK_INTERVAL_MS) {
+          peaksRef.current.push(Math.min(1, windowPeak * 2.2));
+          windowPeak = 0;
+          lastSample = now;
+        }
+        setElapsedMs(now - startedRef.current);
         rafRef.current = requestAnimationFrame(tick);
       };
 
+      peaksRef.current = [];
       startedRef.current = Date.now();
       setElapsedMs(0);
       recorder.start(250);
@@ -100,5 +115,5 @@ export function useRecorder(onDone: (rec: Recording) => void) {
     if (mediaRef.current?.state === "recording") mediaRef.current.stop();
   }, []);
 
-  return { state, error, elapsedMs, level, start, stop };
+  return { state, error, elapsedMs, peaksRef, start, stop };
 }

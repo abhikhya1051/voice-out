@@ -8,9 +8,9 @@ interface Props {
 export function HealthBanner({ health, unreachable }: Props) {
   if (unreachable) {
     return (
-      <div className="banner" role="status">
+      <p className="notice" role="status">
         The server isn't responding. Start everything with <code>npm run dev</code> from the repo root.
-      </div>
+      </p>
     );
   }
   if (!health || health.ok) return null;
@@ -22,8 +22,8 @@ export function HealthBanner({ health, unreachable }: Props) {
   ].filter(Boolean);
 
   return (
-    <div className="banner" role="status">
-      Missing: {missing.join(", ")}. Run <code>npm run setup:whisper</code>, then restart <code>npm run dev</code>.
-    </div>
+    <p className="notice" role="status">
+      Missing {missing.join(", ")}. Run <code>npm run setup:whisper</code>, then restart <code>npm run dev</code>.
+    </p>
   );
 }

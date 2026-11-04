@@ -1,64 +1,64 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { Transcript } from "../api";
 import { countFillers, markFillers } from "../lib/fillers";
 import { formatSeconds, formatTime } from "../lib/format";
+import { InkWave } from "./InkWave";
 
 interface Props {
   transcript: Transcript;
   audioUrl: string | null;
   durationMs: number;
+  recordedAt: Date;
+  peaks: number[];
 }
 
-export function TranscriptView({ transcript, audioUrl, durationMs }: Props) {
-  const [showSegments, setShowSegments] = useState(false);
-  const tokens = useMemo(() => markFillers(transcript.text), [transcript.text]);
-  const fillers = countFillers(tokens);
+const dateFmt = new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric" });
+const timeFmt = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
+
+/** One memo as a notebook entry: date, ink sketch of the audio, then the words on ruled lines. */
+export function TranscriptView({ transcript, audioUrl, durationMs, recordedAt, peaks }: Props) {
+  const allTokens = useMemo(() => markFillers(transcript.text), [transcript.text]);
+  const fillers = countFillers(allTokens);
   const words = transcript.text.split(/\s+/).filter(Boolean).length;
+  const lines = transcript.segments.length
+    ? transcript.segments
+    : [{ startMs: 0, endMs: durationMs, text: transcript.text }];
 
   return (
-    <section className="panel" aria-label="Raw transcript">
-      <header className="panel-head">
-        <h2>Raw transcript</h2>
-        <div className="stats">
-          <span>{words} words</span>
-          <span>{fillers} fillers kept</span>
-          <span>transcribed in {formatSeconds(transcript.elapsedMs)}</span>
-          {durationMs > 0 && <span>{formatTime(durationMs)} audio</span>}
-        </div>
+    <article className="entry" aria-label="Memo">
+      <header className="entry-head">
+        <p className="entry-date">
+          {dateFmt.format(recordedAt)} · {timeFmt.format(recordedAt)}
+        </p>
+        <InkWave peaks={peaks} height={48} className="entry-wave" inkVar="--ink-soft" />
+        {audioUrl && <audio controls src={audioUrl} className="player" />}
       </header>
 
-      {audioUrl && <audio controls src={audioUrl} className="player" />}
-
       {transcript.text ? (
-        <p className="transcript">
-          {tokens.map((t, i) => (t.filler ? <mark key={i}>{t.text}</mark> : <span key={i}>{t.text}</span>))}
-        </p>
+        <ol className="lines">
+          {lines.map((seg, i) => (
+            <li key={i}>
+              <time className="margin-note">{formatTime(seg.startMs)}</time>
+              <p>
+                {markFillers(seg.text).map((t, j) =>
+                  t.filler ? <mark key={j}>{t.text}</mark> : <span key={j}>{t.text}</span>,
+                )}
+              </p>
+            </li>
+          ))}
+        </ol>
       ) : (
-        <p className="muted">Whisper heard no speech. Try speaking closer to the mic.</p>
+        <p className="quiet">Nothing written down. Whisper heard no speech, so try speaking closer to the mic.</p>
       )}
 
-      <p className="hint">
-        Highlighted words are fillers Whisper kept. If you said "um" and it's missing here, Whisper dropped it.
-        Step 3 replaces this simple highlighter with Claude's context-aware cleanup.
-      </p>
-
-      {transcript.segments.length > 0 && (
-        <>
-          <button type="button" className="ghost small" onClick={() => setShowSegments((v) => !v)} aria-expanded={showSegments}>
-            {showSegments ? "Hide" : "Show"} timestamps ({transcript.segments.length} segments)
-          </button>
-          {showSegments && (
-            <ol className="segments">
-              {transcript.segments.map((s, i) => (
-                <li key={i}>
-                  <time>{formatTime(s.startMs)}</time>
-                  <span>{s.text}</span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </>
-      )}
-    </section>
+      <footer className="entry-foot">
+        <span>{words} words</span>
+        <span>
+          <mark>{fillers} fillers</mark> kept by Whisper
+        </span>
+        <span>transcribed in {formatSeconds(transcript.elapsedMs)}</span>
+        {durationMs > 0 && <span>{formatTime(durationMs)} of audio</span>}
+      </footer>
+    </article>
   );
 }
