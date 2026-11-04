@@ -4,13 +4,13 @@
  *   meaning kept   {braced} words that were NOT cut
  *   facts kept     mustSay patterns found in the note
  *   invented       facts the checker flagged, plus mustNotSay hits
- * Usage: npm run eval   (needs ANTHROPIC_API_KEY in .env)
+ * Usage: npm run eval   (needs GEMINI_API_KEY or ANTHROPIC_API_KEY in .env)
  */
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { loadConfig, ROOT } from "../config.js";
-import { createClient } from "../clean/claude.js";
 import { cleanAndCheck } from "../clean/pipeline.js";
+import { cleanupErrorMessage, createCleaner } from "../clean/providers.js";
 import { cutMap } from "../clean/normalize.js";
 import { parseCase } from "./case.js";
 import { CASES } from "./cases.js";
@@ -25,18 +25,30 @@ interface Row {
 }
 
 const config = loadConfig();
-if (!config.anthropicApiKey) {
-  console.error("Set ANTHROPIC_API_KEY in .env to run the evals.");
+const cleaner = createCleaner(config);
+if (!cleaner) {
+  console.error("Set GEMINI_API_KEY (free) or ANTHROPIC_API_KEY in .env to run the evals.");
   process.exit(1);
 }
-const client = createClient(config.anthropicApiKey);
+console.log(`Running evals with ${cleaner.provider} (${cleaner.model})\n`);
 const only = process.argv[2];
 const rows: Row[] = [];
 
 for (const c of CASES.filter((c) => !only || c.name === only)) {
   const { words, expectCut, expectKeep } = parseCase(c.transcript);
   process.stdout.write(`${c.name.padEnd(22)} `);
-  const { cleanup, check } = await cleanAndCheck(words, { client, model: config.claudeModel });
+  let result;
+  try {
+    result = await cleanAndCheck(words, cleaner);
+  } catch (err) {
+    console.log(`✗ ${cleanupErrorMessage(err, cleaner.provider, cleaner.model)}`);
+    if ((err as { status?: number }).status === 429) {
+      console.log("Stopping early: rate limited. Results so far are below.");
+      break;
+    }
+    continue;
+  }
+  const { cleanup, check } = result;
   const cut = cutMap(cleanup.cuts, words.length);
   const note = [cleanup.title, ...cleanup.sentences.map((s) => s.text), ...cleanup.todos.map((t) => `${t.text} ${t.due ?? ""}`)].join(" ");
 
@@ -74,7 +86,7 @@ const totals = {
 };
 
 console.log(
-  `\n${rows.length} cases · model ${config.claudeModel}\n` +
+  `\n${rows.length} cases · ${cleaner.provider} · ${cleaner.model}\n` +
     `fillers cut   ${pct(totals.fillersCut)} (${totals.fillersCut.join("/")})\n` +
     `meaning kept  ${pct(totals.meaningKept)} (${totals.meaningKept.join("/")})\n` +
     `facts kept    ${pct(totals.factsKept)} (${totals.factsKept.join("/")})\n` +
@@ -85,7 +97,7 @@ if (!only) {
   const md = [
     `# Eval results`,
     ``,
-    `${rows.length} cases · \`${config.claudeModel}\` · ${new Date().toISOString().slice(0, 10)}`,
+    `${rows.length} cases · ${cleaner.provider} · \`${cleaner.model}\` · ${new Date().toISOString().slice(0, 10)}`,
     ``,
     `| | Result |`,
     `| --- | --- |`,
@@ -102,7 +114,7 @@ if (!only) {
     ),
     ``,
   ].join("\n");
-  const out = path.join(ROOT, "evals", "RESULTS.md");
+  const out = path.join(ROOT, "evals", `RESULTS-${cleaner.provider}.md`);
   await writeFile(out, md);
   console.log(`\nWrote ${path.relative(ROOT, out)}`);
 }

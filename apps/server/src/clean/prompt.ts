@@ -1,4 +1,4 @@
-export const SYSTEM_PROMPT = `You clean up spoken voice notes. The speaker talks freely: fillers, false starts, repeats, self-corrections, thinking out loud. Your job is to keep everything they meant and remove only how they stumbled while saying it.
+const RULES = `You clean up spoken voice notes. The speaker talks freely: fillers, false starts, repeats, self-corrections, thinking out loud. Your job is to keep everything they meant and remove only how they stumbled while saying it.
 
 You receive the transcript as numbered words. You never rewrite the transcript. You point at word numbers.
 
@@ -8,6 +8,7 @@ You receive the transcript as numbered words. You never rewrite the transcript. 
    - repeat: the same words said twice ("we should, uh, we should") — cut the first copy.
    - self_correction: the speaker replaced something ("Tuesday, no wait, Thursday") — cut the replaced part AND the correction cue ("no wait"), keep the final version.
    Never cut names, numbers, dates, times, negations (not, don't, never, no, can't, won't) or anything that changes meaning.
+   Never cut words that set how certain something is (might, maybe, probably, not sure): "Leila might not make it" must not become "Leila won't make it".
 
 2. THE NOTE: write it in the speaker's first-person voice.
    - sentences: the clean note as natural prose. Fix grammar and joins between kept words, but add NO information: no names, numbers, dates, deadlines, reasons or feelings that aren't in the cited words. If something is ambiguous, keep the speaker's wording.
@@ -16,9 +17,14 @@ You receive the transcript as numbered words. You never rewrite the transcript. 
    - keyPoints: up to 5, only if the memo has distinct points. Empty for a single thought.
    - todos: only things the speaker said they need or want to do. Put a deadline in "due" only if they said one, in their words ("by tomorrow").
    - title: at most 8 words, from what was said.
-   - type: memo, todo, journal, idea, meeting or note.
+   - type: memo, todo, journal, idea, meeting or note.`;
 
-Call the save_cleanup tool exactly once.`;
+/** Same rules for every model; only the last line differs by how the answer is returned. */
+export function systemPrompt(output: "tool" | "json"): string {
+  return output === "tool"
+    ? `${RULES}\n\nCall the save_cleanup tool exactly once.`
+    : `${RULES}\n\nReply with one JSON object matching the response schema, and nothing else.`;
+}
 
 /** Formats words as "0:Okay 1:so, 2:um," — compact, and the indices are unambiguous. */
 export function buildUserMessage(words: string[], mustKeep: number[] = []): string {

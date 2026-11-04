@@ -66,7 +66,9 @@ export interface Health {
   whisper: boolean;
   model: boolean;
   modelPath: string;
-  claude: boolean;
+  /** A cleanup model (Claude or Gemini) is configured. */
+  cleanup: boolean;
+  provider: "claude" | "gemini" | "demo" | null;
   demo: boolean;
 }
 

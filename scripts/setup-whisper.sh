@@ -25,7 +25,7 @@ if [[ "$(uname)" == "Darwin" ]]; then
       brew install "$pkg"
     fi
   done
-  [[ "$(uname -m)" == "arm64" ]] && say "Apple Silicon detected: whisper.cpp will use Metal"
+  [[ "$(uname -m)" == "arm64" ]] && say "Apple Silicon detected: will test whether whisper.cpp can use the GPU (Metal)"
 else
   say "Not macOS. Install ffmpeg and build whisper.cpp yourself (https://github.com/ggerganov/whisper.cpp),"
   say "then set WHISPER_BIN in .env to the whisper-cli path."

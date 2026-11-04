@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { normalizeCleanup } from "./normalize.js";
-import { buildUserMessage, SYSTEM_PROMPT } from "./prompt.js";
+import { buildUserMessage, systemPrompt } from "./prompt.js";
 import { CleanupSchema, cleanupJsonSchema, type Cleanup } from "./schema.js";
 
 export const TOOL_NAME = "save_cleanup";
@@ -27,7 +27,7 @@ export async function cleanWithClaude(words: string[], { client, model, mustKeep
   const response = await client.messages.create({
     model,
     max_tokens: 8000,
-    system: SYSTEM_PROMPT,
+    system: systemPrompt("tool"),
     tools: [
       {
         name: TOOL_NAME,

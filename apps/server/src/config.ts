@@ -15,12 +15,22 @@ export interface Config {
   /** Try the GPU (Metal) first. Set WHISPER_GPU=false to always use the CPU. */
   whisperGpu: boolean;
   maxUploadBytes: number;
+  /** Which model cleans up memos; null when no API key is set. */
+  cleanupProvider: "claude" | "gemini" | null;
   anthropicApiKey: string | null;
   claudeModel: string;
+  geminiApiKey: string | null;
+  geminiModel: string;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const model = env.WHISPER_MODEL ?? "models/ggml-small.en.bin";
+  const anthropicApiKey = env.ANTHROPIC_API_KEY?.trim() || null;
+  const geminiApiKey = env.GEMINI_API_KEY?.trim() || null;
+  // CLEANUP_PROVIDER wins; otherwise use whichever key is set (Claude first if both are)
+  const chosen = env.CLEANUP_PROVIDER?.trim().toLowerCase();
+  const cleanupProvider =
+    chosen === "claude" || chosen === "gemini" ? chosen : anthropicApiKey ? "claude" : geminiApiKey ? "gemini" : null;
   return {
     port: Number(env.PORT ?? 8787),
     whisperBin: env.WHISPER_BIN ?? "whisper-cli",
@@ -28,7 +38,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     ffmpegBin: env.FFMPEG_BIN ?? "ffmpeg",
     whisperGpu: !/^(false|0|no|off)$/i.test(env.WHISPER_GPU?.trim() ?? ""),
     maxUploadBytes: 50 * 1024 * 1024,
-    anthropicApiKey: env.ANTHROPIC_API_KEY?.trim() || null,
+    cleanupProvider,
+    anthropicApiKey,
     claudeModel: env.CLAUDE_MODEL?.trim() || "claude-haiku-5-5",
+    geminiApiKey,
+    geminiModel: env.GEMINI_MODEL?.trim() || "gemini-3.1-flash-lite",
   };
 }

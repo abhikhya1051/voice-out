@@ -70,7 +70,7 @@ export function App() {
         return;
       }
       if (transcript.words.length === 0) return setStage("idle");
-      if (health && !health.claude) return setStage("idle");
+      if (health && !health.cleanup) return setStage("idle");
       await runClean(transcript, []);
     },
     [health, runClean],
@@ -152,7 +152,7 @@ export function App() {
               <p className="quiet">Nothing written down. Whisper heard no speech, so try speaking closer to the mic.</p>
             ))}
 
-          {stage === "cleaning" && <p className="quiet" role="status">Claude is cleaning it up, then every fact gets checked against your words…</p>}
+          {stage === "cleaning" && <p className="quiet" role="status">Cleaning it up, then checking every fact against your words…</p>}
 
           {memo.result && (
             <NoteView
