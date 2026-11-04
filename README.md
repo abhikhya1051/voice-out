@@ -64,9 +64,11 @@ Those tools optimize for **speed and polish**. Voice Out optimizes for **trust**
 
 <img src="docs/screenshots/note.png" alt="A cleaned memo: transcript with struck fillers and highlighted facts, the clean note with date notes, and a receipt reading 0 invented" width="720">
 
-| Recording | When something doesn't add up | Dark mode | Phone |
+| Recording | When something doesn't add up* | Dark mode | Phone |
 | --- | --- | --- | --- |
 | <img src="docs/screenshots/recording.png" alt="Recording with a live ink waveform" width="240"> | <img src="docs/screenshots/flag.png" alt="A note line flagged because a day in it was never said" width="240"> | <img src="docs/screenshots/dark.png" alt="The notebook in dark mode" width="240"> | <img src="docs/screenshots/phone.png" alt="The notebook at phone width" width="160"> |
+
+<sub>*To show a flag, one day in the note was swapped on purpose with [`scripts/tamper-demo.ts`](scripts/tamper-demo.ts); the red flag is the real fact check's output.</sub>
 
 ## Try it in one command
 
