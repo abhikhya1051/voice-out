@@ -67,6 +67,14 @@ export const CASES: EvalCase[] = [
     mustNotSay: ["Thursday"],
   },
   {
+    name: "party-planning",
+    tests: "A real recording: two corrections, one phrased as \"not the birthday party\"",
+    transcript:
+      "[Yeah, so] this is a test. [So,] Adam and Priya have to meet on [Thursday. No, scratch that.] They'll be meeting on Friday because Adam's got a play practice on Thursday [and they have to plan for Leila's birthday party. Oh, no, no, no, not the birthday party.] They have to plan for Leila's graduation day party. They're throwing a huge surprise in Adam's backyard. [So,] they have to decide the theme of the party and how many people to invite. [So, yeah,] this has to be decided ASAP on Friday and the invites should be sent out the next day.",
+    mustSay: ["Adam", "Priya", "Friday", "practice", "graduation", "backyard", "theme", "invite"],
+    mustNotSay: ["birthday", "meet(ing)? on Thursday"],
+  },
+  {
     name: "number-correction",
     tests: "A corrected number plus a stutter",
     transcript: "The budget is [forty, no sorry,] fifty thousand dollars [for, for] for Q3.",

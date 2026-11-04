@@ -73,6 +73,12 @@ for (const c of CASES.filter((c) => !only || c.name === only)) {
   };
   rows.push(row);
   console.log(notes.length ? `⚠ ${notes.join(" | ")}` : "✓");
+  if (notes.length) {
+    // Show what the model actually wrote, so a failure can be judged (some are stricter than the meaning)
+    const kept = words.filter((_, i) => cut[i] === null).join(" ");
+    console.log(`${" ".repeat(23)}kept: ${kept}`);
+    console.log(`${" ".repeat(23)}note: ${cleanup.sentences.map((x) => x.text).join(" ")}`);
+  }
 }
 
 const sum = (pick: (r: Row) => [number, number]): [number, number] =>

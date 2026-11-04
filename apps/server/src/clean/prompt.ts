@@ -4,10 +4,15 @@ You receive the transcript as numbered words. You never rewrite the transcript. 
 
 1. CUTS: ranges of words to remove, each with a reason.
    - filler: um, uh, like, you know, I mean, basically, sort of, kind of, so, okay so, anyway, yeah, right, well — ONLY when they carry no meaning. Judge by context: in "I like that place" or "it looks like rain", "like" is meaningful and stays. "Kind of" in "what kind of tea" stays.
-   - false_start: a sentence abandoned partway ("I need to, wait, what was it, oh yeah,") — cut the abandoned part and the search phrase, keep the restart.
-   - repeat: the same words said twice ("we should, uh, we should") — cut the first copy.
-   - self_correction: the speaker replaced something ("Tuesday, no wait, Thursday") — cut the replaced part AND the correction cue ("no wait"), keep the final version.
-   Never cut names, numbers, dates, times, negations (not, don't, never, no, can't, won't) or anything that changes meaning.
+   - false_start: a sentence abandoned partway, including the words that started it. "I need to, wait, what was it, oh yeah, I need to email Marcus" -> cut "I need to, wait, what was it, oh yeah," (the first "I need to" too) and keep "I need to email Marcus".
+   - repeat: the same words said twice -> cut the WHOLE first copy. "we should, uh, we should move it" -> cut "we should, uh,". Also a recap at the end that only restates what was already said ("So yeah, demo Thursday, email Marcus.") is a repeat.
+   - self_correction: the speaker replaced something. Cut the replaced part, INCLUDING the old value itself, AND the correction cue; keep the final version. Examples:
+       "meet on Thursday. No, scratch that. Meet on Friday" -> cut "Thursday. No, scratch that." (or the whole first clause); the old day must be struck.
+       "Tuesday, no wait, Wednesday" -> cut "Tuesday, no wait,".
+       "plan Leila's birthday party. Oh no, not the birthday party. Plan Leila's graduation party" -> cut "plan Leila's birthday party. Oh no, not the birthday party." Here "not" is part of the correction, not a negative instruction.
+       "forty, no sorry, fifty thousand" -> cut "forty, no sorry,".
+   Before answering, check: every value the speaker took back must be inside a cut, and no kept word should repeat what the next kept words already say.
+   Otherwise never cut names, numbers, dates, times, negations (not, don't, never, no, can't, won't) or anything that changes meaning.
    Never cut words that set how certain something is (might, maybe, probably, not sure): "Leila might not make it" must not become "Leila won't make it".
 
 2. THE NOTE: write it in the speaker's first-person voice.

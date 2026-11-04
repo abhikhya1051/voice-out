@@ -184,6 +184,11 @@ export function checkFacts(words: string[], cleanup: Cleanup): FactCheck {
     ["todo", cleanup.todos.map((t) => ({ ...t, text: t.due && !t.text.includes(t.due) ? `${t.text} ${t.due}` : t.text }))],
   ];
 
+  // Our own read of the corrections, so a model that forgets to cut "Tuesday" in
+  // "Tuesday, no wait, Wednesday" can't get it highlighted as a fact or slip it into the note.
+  const { corrected: spokenCorrections, correctiveNegations } = detectCorrections(words, sourceCapitalized);
+  const isCorrected = (i: number) => reasons[i] === "self_correction" || spokenCorrections.has(i);
+
   for (const [kind, list] of items) {
     list.forEach((item, index) => {
       const lo = Math.max(0, item.from - WINDOW);
@@ -194,14 +199,14 @@ export function checkFacts(words: string[], cleanup: Cleanup): FactCheck {
       for (const fact of extractFacts(item.text, sourceCapitalized)) {
         checked++;
         const all = words.map((_, i) => i).filter((i) => matches(i, fact.value));
-        const keptNear = all.filter((i) => inWindow(i) && reasons[i] === null);
-        const keptAnywhere = all.filter((i) => reasons[i] === null);
-        const corrected = all.filter((i) => reasons[i] === "self_correction");
+        const usable = all.filter((i) => reasons[i] === null && !isCorrected(i));
+        const usableNear = usable.filter(inWindow);
 
-        if (keptNear.length || keptAnywhere.length) {
+        const correctedNear = all.filter((i) => inWindow(i) && isCorrected(i));
+        if (usableNear.length || (usable.length && !correctedNear.length)) {
           supported++;
-          (keptNear.length ? keptNear : keptAnywhere).forEach((i) => factWords.add(i));
-        } else if (corrected.length) {
+          (usableNear.length ? usableNear : usable).forEach((i) => factWords.add(i));
+        } else if (all.some(isCorrected)) {
           flags.push({ kind, index, fact: fact.label, problem: "corrected", message: `You corrected "${fact.label}" while talking, but the note still uses it.` });
         } else if (all.length) {
           // Only said inside a filler/repeat/false start: it was said, so not invented
@@ -211,19 +216,98 @@ export function checkFacts(words: string[], cleanup: Cleanup): FactCheck {
         }
       }
 
-      // Negation can flip the meaning of a sentence without touching any fact
+      // Negation can flip meaning without touching any fact. Only a negation whose target
+      // shows up in the note matters: "don't email Marcus" vs a note that says "email Marcus".
+      const noteWords = new Set(item.text.split(/[\s\-–—/]+/).map(norm));
       const noteNeg = item.text.split(/\s+/).some((w) => NEGATIONS.has(norm(w)) || /n['’]t\b/i.test(w));
+      const noteRestricts = noteNeg || [...noteWords].some((w) => RESTRICTIONS.has(w));
+      let dropped = false;
       let sourceNeg = false;
       for (let i = item.from; i <= item.to && i < words.length; i++) {
-        if (reasons[i] === null && NEGATIONS.has(norm(words[i] ?? ""))) sourceNeg = true;
+        if (reasons[i] !== null || !isNegation(words[i] ?? "") || correctiveNegations.has(i)) continue;
+        sourceNeg = true;
+        const target = negationTarget(words, i);
+        if (target && noteWords.has(target) && !noteRestricts) dropped = true;
       }
-      if (sourceNeg && !noteNeg) {
+      if (dropped) {
         flags.push({ kind, index, fact: "not", problem: "negation_dropped", message: "You said this in the negative, but the note doesn't." });
-      } else if (noteNeg && !sourceNeg && !words.slice(lo, hi + 1).some((w, k) => reasons[lo + k] === null && NEGATIONS.has(norm(w)))) {
+      } else if (
+        noteNeg &&
+        !sourceNeg &&
+        !words.slice(lo, hi + 1).some((w, k) => reasons[lo + k] === null && isNegation(w) && !correctiveNegations.has(lo + k))
+      ) {
         flags.push({ kind, index, fact: "not", problem: "negation_added", message: "The note says this in the negative, but you didn't." });
       }
     });
   }
 
   return { checked, supported, flags, factWords: [...factWords].sort((a, b) => a - b) };
+}
+
+/** Words in the note that keep a "don't X" meaning without the word "not": "only email Marcus after...". */
+const RESTRICTIONS = new Set(["until", "unless", "without", "avoid", "wait", "hold", "only", "before", "after", "refrain", "skip", "instead", "later"]);
+
+/** Phrases that mean "replace what I just said". */
+const CORRECTION_CUES = [["no", "wait"], ["wait", "no"], ["scratch", "that"], ["no", "sorry"], ["or", "rather"], ["make", "that"], ["correction"]];
+
+const FILLER_LIKE = new Set(["the", "a", "an", "to", "on", "for", "of", "my", "our", "that", "this", "it"]);
+
+/** A spoken negation, but not a bare interjection like "No," or "no." */
+function isNegation(word: string): boolean {
+  const n = norm(word);
+  if (!NEGATIONS.has(n)) return false;
+  return !(n === "no" && /[,.!?]$/.test(word));
+}
+
+/** The first meaningful word after a negation: "don't email Marcus" -> "email". */
+function negationTarget(words: string[], i: number): string | null {
+  for (let j = i + 1; j <= i + 3 && j < words.length; j++) {
+    const n = norm(words[j] ?? "");
+    if (n && !FILLER_LIKE.has(n)) return n;
+  }
+  return null;
+}
+
+/**
+ * Finds self-corrections in what was said, independent of the model:
+ * - a fact right before a cue: "Thursday. No, scratch that." / "forty, no sorry, fifty"
+ * - "X, no, Y" where Y is the same kind of fact: "Tuesday, no, Wednesday"
+ * - "not the X" echoing something said just before: "birthday party. Oh no, not the birthday party."
+ *   (that "not" is a correction, not a negative instruction)
+ */
+export function detectCorrections(words: string[], sourceCapitalized: Set<string> = new Set()) {
+  const corrected = new Set<number>();
+  const correctiveNegations = new Set<number>();
+  const n = words.map(norm);
+  const isFact = (i: number) =>
+    i >= 0 && i < words.length && (extractFacts(words[i]!, sourceCapitalized).length > 0 || n[i]! in UNITS || n[i]! in TENS);
+
+  /** The fact nearest before a cue at c (plus fact words directly attached to it): what got replaced. */
+  const markBefore = (c: number) => {
+    let end = c - 1;
+    while (end >= 0 && ["no", "oh", "wait", "sorry"].includes(n[end] ?? "")) end--;
+    let j = end;
+    while (j >= Math.max(0, end - 4) && !isFact(j)) {
+      if (j < end && /[.!?]$/.test(words[j] ?? "")) return;
+      j--;
+    }
+    while (j >= 0 && isFact(j)) corrected.add(j--);
+  };
+
+  for (let c = 0; c < words.length; c++) {
+    if (CORRECTION_CUES.some((cue) => cue.every((w, k) => n[c + k] === w))) markBefore(c);
+    if (n[c] === "no" && /,$/.test(words[c] ?? "") && isFact(c - 1) && (isFact(c + 1) || isFact(c + 2))) corrected.add(c - 1);
+  }
+
+  for (let i = 0; i < words.length; i++) {
+    if (!NEGATIONS.has(n[i] ?? "")) continue;
+    const after = [n[i + 1], n[i + 2], n[i + 3]].filter((w): w is string => !!w && !FILLER_LIKE.has(w));
+    const earlier = n.slice(Math.max(0, i - 15), i);
+    const echoes = after.filter((w) => earlier.includes(w));
+    if (echoes.length) {
+      correctiveNegations.add(i);
+      for (let j = Math.max(0, i - 15); j < i; j++) if (echoes.includes(n[j]!)) corrected.add(j);
+    }
+  }
+  return { corrected, correctiveNegations };
 }
