@@ -1,64 +1,70 @@
-import { useMemo } from "react";
-import type { Transcript } from "../api";
-import { countFillers, markFillers } from "../lib/fillers";
-import { formatSeconds, formatTime } from "../lib/format";
-import { InkWave } from "./InkWave";
+import type { CleanResult, Span, Transcript } from "../api";
+import { formatTime } from "../lib/format";
+import { inSpan, REASON_LABEL, wordMarks } from "../lib/marks";
 
 interface Props {
   transcript: Transcript;
-  audioUrl: string | null;
-  durationMs: number;
-  recordedAt: Date;
-  peaks: number[];
+  result: CleanResult | null;
+  restoring: ReadonlySet<number>;
+  onToggleRestore: (index: number) => void;
+  /** Source words of the note line you're pointing at, lit up here. */
+  activeSpan: Span | null;
+  onPlayWord: (index: number) => void;
 }
 
-const dateFmt = new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric" });
-const timeFmt = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
-
-/** One memo as a notebook entry: date, ink sketch of the audio, then the words on ruled lines. */
-export function TranscriptView({ transcript, audioUrl, durationMs, recordedAt, peaks }: Props) {
-  const allTokens = useMemo(() => markFillers(transcript.text), [transcript.text]);
-  const fillers = countFillers(allTokens);
-  const words = transcript.text.split(/\s+/).filter(Boolean).length;
-  const lines = transcript.segments.length
+/** What you actually said, on ruled lines: struck = cleaned up, highlighted = carried into the note. */
+export function TranscriptView({ transcript, result, restoring, onToggleRestore, activeSpan, onPlayWord }: Props) {
+  const marks = wordMarks(transcript.words.length, result, restoring);
+  const segments = transcript.segments.length
     ? transcript.segments
-    : [{ startMs: 0, endMs: durationMs, text: transcript.text }];
+    : [{ startMs: 0, endMs: 0, text: transcript.text, firstWord: 0, endWord: transcript.words.length }];
 
   return (
-    <article className="entry" aria-label="Memo">
-      <header className="entry-head">
-        <p className="entry-date">
-          {dateFmt.format(recordedAt)} · {timeFmt.format(recordedAt)}
-        </p>
-        <InkWave peaks={peaks} height={48} className="entry-wave" inkVar="--ink-soft" />
-        {audioUrl && <audio controls src={audioUrl} className="player" />}
-      </header>
-
-      {transcript.text ? (
-        <ol className="lines">
-          {lines.map((seg, i) => (
-            <li key={i}>
-              <time className="margin-note">{formatTime(seg.startMs)}</time>
-              <p>
-                {markFillers(seg.text).map((t, j) =>
-                  t.filler ? <mark key={j}>{t.text}</mark> : <span key={j}>{t.text}</span>,
-                )}
-              </p>
-            </li>
-          ))}
-        </ol>
-      ) : (
-        <p className="quiet">Nothing written down. Whisper heard no speech, so try speaking closer to the mic.</p>
-      )}
-
-      <footer className="entry-foot">
-        <span>{words} words</span>
-        <span>
-          <mark>{fillers} fillers</mark> kept by Whisper
-        </span>
-        <span>transcribed in {formatSeconds(transcript.elapsedMs)}</span>
-        {durationMs > 0 && <span>{formatTime(durationMs)} of audio</span>}
-      </footer>
-    </article>
+    <section aria-label="What you said">
+      <h2 className="section-label">What you said</h2>
+      <ol className="lines">
+        {segments.map((seg) => (
+          <li key={seg.firstWord}>
+            <button type="button" className="margin-note" onClick={() => onPlayWord(seg.firstWord)} aria-label={`Play from ${formatTime(seg.startMs)}`}>
+              {formatTime(seg.startMs)}
+            </button>
+            <p>
+              {transcript.words.slice(seg.firstWord, seg.endWord).map((word, k) => {
+                const i = seg.firstWord + k;
+                const mark = marks[i]!;
+                // The tint for "you said it here" sits on the wrapper (space included) so it reads as one continuous run
+                const source = inSpan(i, activeSpan) ? "is-source" : undefined;
+                const space = k > 0 ? " " : "";
+                if (mark.kind === "cut") {
+                  const label = REASON_LABEL[mark.reason];
+                  return (
+                    <span key={i} className={source}>
+                      {space}
+                      <button
+                        type="button"
+                        className={`cut${mark.restoring ? " is-restoring" : ""}`}
+                        data-reason={label}
+                        title={mark.restoring ? "Restored. Re-clean to keep it." : `Cut as ${label}. Tap to restore.`}
+                        aria-pressed={mark.restoring}
+                        aria-label={`${word.text}, cut as ${label}${mark.restoring ? ", restored" : ""}`}
+                        onClick={() => onToggleRestore(i)}
+                      >
+                        {word.text}
+                      </button>
+                    </span>
+                  );
+                }
+                return (
+                  <span key={i} className={source}>
+                    {space}
+                    {mark.kind === "fact" ? <mark className="fact">{word.text}</mark> : word.text}
+                  </span>
+                );
+              })}
+            </p>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }

@@ -8,12 +8,16 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dev:demo": "VOICE_OUT_DEMO=1 tsx watch src/index.ts",
+    "eval": "tsx src/evals/run.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
     "@fastify/multipart": "^9.0.1",
     "dotenv": "^16.4.7",
-    "fastify": "^5.2.0"
+    "fastify": "^5.2.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

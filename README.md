@@ -1,55 +1,116 @@
 # Voice Out
 
-Ramble into your mic like you're leaving yourself a voice memo — "um, so, like, we should, uh, move the demo to Thursday, you know" — and get back a clean note that keeps what you meant and drops the filler.
+**Ramble freely. Cleaned up, never made up.**
 
-- **Transcription runs locally** with [whisper.cpp](https://github.com/ggerganov/whisper.cpp) (Metal-accelerated on Apple Silicon). Your audio never leaves your machine.
-- **Cleanup uses Claude** to tell real content from filler *by context*: "I like that place" keeps *like*; "it was, like, fine" drops it. *(coming in step 3)*
+Talk into your mic the way you'd leave yourself a voice memo — "um, so, like, we should, uh, move the demo to Thursday, you know" — and Voice Out writes it down as a clean note.
 
-> **Status:** step 2 of 5 — recording and local transcription work. Claude cleanup, saved notes and evals are next.
+Most voice-to-text apps are black boxes: you speak, tidy text comes back, and you have no way to know what was cut or whether anything was changed. For notes, that matters — a dropped "not" or an invented deadline is worse than an "um". Voice Out shows its receipts:
 
-## Quick start (macOS)
+- **Every cut is visible.** Removed words stay in the transcript with a pencil strike-through and a reason (filler, false start, repeat, corrected). Tap one to restore it.
+- **Every fact is checked.** Names, numbers, dates and times in the note are verified against the words you actually said — by plain code, not another AI call. Anything that doesn't trace back gets flagged.
+- **Every line links to your voice.** Tap a sentence in the note to hear yourself say it; its source words light up in the transcript.
+- **Your audio never leaves your Mac.** Transcription runs locally with [whisper.cpp](https://github.com/ggerganov/whisper.cpp). Only the text goes to Claude.
 
-Requires Node 20+, [Homebrew](https://brew.sh) and Xcode Command Line Tools.
+<!-- Add a screenshot or GIF here: docs/screenshot.png -->
+
+## Try it in one command (no setup)
+
+```bash
+npm install
+npm run demo
+```
+
+Open http://localhost:5173 and press the mic (or upload any audio). Demo mode skips Whisper and the API: every recording becomes a sample memo with a recorded Claude response, but the fact check runs for real.
+
+## Run it with your own voice (macOS)
+
+Needs Node 20+, [Homebrew](https://brew.sh), and an [Anthropic API key](https://console.anthropic.com).
 
 ```bash
 npm install
 npm run setup:whisper   # installs whisper-cpp + ffmpeg, downloads the small.en model (~470 MB), creates .env
-npm run dev             # server on :8787, web app on http://localhost:5173
+# put your key in .env: ANTHROPIC_API_KEY=sk-ant-...
+npm run dev             # http://localhost:5173
 ```
 
-Open http://localhost:5173, allow the microphone, press **Record**, and talk.
+On Apple Silicon, whisper.cpp uses Metal and transcribes a 30-second memo in a few seconds. Cleanup uses `claude-haiku-5-5` by default (a fraction of a cent per memo); set `CLAUDE_MODEL=claude-sonnet-5-5` in `.env` for harder memos.
 
-Want a faster or more accurate model? `npm run setup:whisper -- base.en` or `-- medium.en`, then set `WHISPER_MODEL` in `.env`.
-
-## How it works
+## How the receipts work
 
 ```
-Browser (MediaRecorder: webm/opus or mp4/aac)
-   │  POST /api/transcribe (multipart)
-   ▼
-Fastify server
-   ├─ ffmpeg → 16 kHz mono WAV
-   └─ whisper-cli --prompt "<disfluent example>" -oj → segments + timestamps
+mic ─▶ ffmpeg ─▶ whisper.cpp ─────────▶ words with timestamps
+                 (local, -ojf)                  │
+                                                ▼
+                                   Claude (tool use, Zod schema)
+                                   returns WORD NUMBERS, not text:
+                                   cuts [{from, to, reason}]
+                                   note sentences [{text, from, to}]
+                                                │
+                                                ▼
+                                   fact check (plain TypeScript)
+                                   every name/number/date in the note
+                                   must match a KEPT source word
+                                                │
+                                                ▼
+                     notebook UI: struck = cut · highlighted = checked fact
 ```
 
-**Why the odd prompt?** Whisper was trained on tidy subtitles, so it quietly deletes "um" and "uh". Voice Out needs to *see* the fillers to show what it cut, so the decoder is primed with a deliberately disfluent prompt — Whisper imitates the style of its prompt and keeps them.
+**1. Whisper is told to keep the ums.** Whisper was trained on tidy subtitles and quietly deletes fillers. Voice Out primes the decoder with a deliberately disfluent prompt, so the transcript shows what you really said.
+
+**2. Claude points at words; it never rewrites the transcript.** The transcript goes to Claude as numbered words (`0:Okay 1:so, 2:um,`). Claude returns ranges of word numbers to cut, and each note sentence cites the word range it came from. The transcript you see is always Whisper's exact output, so the AI can't silently alter it. Output is forced through a tool call and validated with the same Zod schema that generates the tool's JSON Schema.
+
+**3. Plain code checks the note.** [`verify/facts.ts`](apps/server/src/verify/facts.ts) extracts every name, number, weekday, month, time and relative date ("tomorrow") from the note and looks for it among the *kept* words near the cited span. It handles "twenty five" ↔ 25, possessives and abbreviations, and flags:
+
+| Problem | Example |
+| --- | --- |
+| Not said | Note says "by Friday"; you never said Friday |
+| Corrected | You said "Tuesday, no wait, Thursday", but the note uses Tuesday |
+| Negation dropped | You said "don't email Marcus"; the note says "email Marcus" |
+| Negation added | The note says "don't", you didn't |
+
+The result is the receipt at the bottom of every note: **"18 facts checked against your words · 0 invented"**.
+
+**4. Restoring is a constraint, not a suggestion.** Restored words are sent back as `mustKeep`, and the server removes them from any cut Claude proposes, so a restored word can't be cut again.
+
+## Evals
+
+[`apps/server/src/evals/cases.ts`](apps/server/src/evals/cases.ts) has ten rambles built to trip up a naive filler remover: "like" as a verb, "don't email Marcus", "twenty five chairs", "Tuesday, no wait, Wednesday", a corrected budget figure, feelings that aren't filler. Each case marks words that *should* be cut `[like this]` and words that must survive `{like this}`.
+
+```bash
+npm run eval                 # all cases, writes evals/RESULTS.md
+npm run eval -- negation     # one case
+```
+
+It reports four numbers: fillers cut, meaningful words kept, facts kept, and facts invented. See [evals/RESULTS.md](evals/RESULTS.md) once you've run it.
 
 ## Scripts
 
 | Command | What it does |
 | --- | --- |
+| `npm run demo` | Full UI with no Whisper and no API key |
 | `npm run dev` | Server + web app with hot reload |
-| `npm test` | Vitest (server pipeline with a fake whisper, filler marker) |
+| `npm test` | Vitest: whisper parsing, cleanup normalization, fact check, API routes, UI marks. No API key needed. |
+| `npm run eval` | Real Claude on the eval cases |
 | `npm run typecheck` / `npm run lint` | TypeScript + ESLint |
-| `npm run setup:whisper` | Install whisper.cpp/ffmpeg, download a model |
+| `npm run setup:whisper` | Install whisper.cpp/ffmpeg, download a model (`-- base.en` or `-- medium.en` for others) |
 
 ## Project layout
 
 ```
-apps/server   Fastify + TypeScript: /api/health, /api/transcribe
-apps/web      Vite + React + TypeScript: recorder, transcript view
-scripts/      setup-whisper.sh
+apps/server/src
+  transcribe/   ffmpeg + whisper.cpp, tokens → words with timestamps
+  clean/        Claude prompt, Zod schema, tool call, normalization
+  verify/       the deterministic fact check
+  evals/        tricky cases + runner
+  demo.ts       recorded responses for `npm run demo`
+apps/web/src
+  components/   Recorder (mic + ink waveform), TranscriptView, NoteView
+  hooks/        useRecorder, useClipPlayer (tap-to-hear)
 ```
+
+## Stack
+
+TypeScript throughout · Fastify · React + Vite · whisper.cpp · Claude via the Anthropic SDK · Zod · Vitest · GitHub Actions
 
 ## License
 

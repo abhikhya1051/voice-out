@@ -4,15 +4,26 @@ import path from "node:path";
 import type { Config } from "../config.js";
 import { run as defaultRun, type Runner } from "./run.js";
 
+/** One spoken word with its punctuation attached, e.g. "um," or "Tuesday." */
+export interface Word {
+  text: string;
+  startMs: number;
+  endMs: number;
+}
+
 export interface Segment {
-  /** Start/end in milliseconds from the beginning of the recording. */
   startMs: number;
   endMs: number;
   text: string;
+  /** Index of this segment's first word in `Transcript.words`. */
+  firstWord: number;
+  /** Index one past this segment's last word. */
+  endWord: number;
 }
 
 export interface Transcript {
   text: string;
+  words: Word[];
   segments: Segment[];
   /** Wall-clock time spent converting + transcribing. */
   elapsedMs: number;
@@ -26,22 +37,68 @@ export interface Transcript {
 export const DISFLUENCY_PROMPT =
   "Umm, so, like, I was, uh, thinking... you know, I mean, hmm, let me, uh, let me think. Okay, yeah, so basically, like, um.";
 
+interface WhisperToken {
+  text: string;
+  offsets?: { from: number; to: number };
+}
 interface WhisperJson {
-  transcription?: { offsets?: { from: number; to: number }; text: string }[];
+  transcription?: { offsets?: { from: number; to: number }; text: string; tokens?: WhisperToken[] }[];
 }
 
+const NON_SPEECH = /^[[(].*[\])]$/;
+
+/**
+ * Turns whisper.cpp's full JSON (-ojf) into words with timestamps.
+ * Whisper emits sub-word tokens; a token that starts with a space begins a new word,
+ * anything else (", " "ing" "'s") is glued onto the previous word.
+ * Without token data it falls back to spreading the segment's time evenly over its words.
+ */
 export function parseWhisperJson(raw: string): Omit<Transcript, "elapsedMs"> {
   const data = JSON.parse(raw) as WhisperJson;
-  const segments: Segment[] = (data.transcription ?? [])
-    .map((s) => ({
-      startMs: s.offsets?.from ?? 0,
-      endMs: s.offsets?.to ?? 0,
-      text: s.text.trim(),
-    }))
-    // whisper.cpp emits markers like [BLANK_AUDIO] or (music) for non-speech
-    .filter((s) => s.text && !/^[[(].*[\])]$/.test(s.text));
-  const text = segments.map((s) => s.text).join(" ").replace(/\s+/g, " ").trim();
-  return { text, segments };
+  const words: Word[] = [];
+  const segments: Segment[] = [];
+
+  for (const seg of data.transcription ?? []) {
+    const segText = seg.text.trim();
+    if (!segText || NON_SPEECH.test(segText)) continue;
+    const segStart = seg.offsets?.from ?? 0;
+    const segEnd = seg.offsets?.to ?? segStart;
+    const firstWord = words.length;
+
+    const tokens = (seg.tokens ?? []).filter((t) => t.text && !t.text.startsWith("[_") && !NON_SPEECH.test(t.text.trim()));
+    if (tokens.length > 0) {
+      for (const tok of tokens) {
+        const from = tok.offsets?.from ?? segStart;
+        const to = tok.offsets?.to ?? from;
+        const last = words[words.length - 1];
+        if (tok.text.startsWith(" ") || !last || words.length === firstWord) {
+          const text = tok.text.trim();
+          if (text) words.push({ text, startMs: from, endMs: to });
+        } else {
+          last.text += tok.text;
+          last.endMs = to;
+        }
+      }
+    } else {
+      const parts = segText.split(/\s+/);
+      const step = (segEnd - segStart) / parts.length;
+      parts.forEach((text, i) =>
+        words.push({ text, startMs: Math.round(segStart + i * step), endMs: Math.round(segStart + (i + 1) * step) }),
+      );
+    }
+
+    if (words.length > firstWord) {
+      segments.push({
+        startMs: segStart,
+        endMs: segEnd,
+        text: words.slice(firstWord).map((w) => w.text).join(" "),
+        firstWord,
+        endWord: words.length,
+      });
+    }
+  }
+
+  return { text: words.map((w) => w.text).join(" "), words, segments };
 }
 
 export interface TranscribeDeps {
@@ -72,9 +129,9 @@ export async function transcribe(
       "-f", wav,
       "-l", "en",
       "--prompt", DISFLUENCY_PROMPT,
-      "-oj", // write JSON with segment timestamps
+      "-oj", "-ojf", // JSON with per-token timestamps, so every word knows when it was said
       "-of", outBase,
-      "-np", // no progress noise
+      "-np",
     ]);
 
     const parsed = parseWhisperJson(await readFile(`${outBase}.json`, "utf8"));

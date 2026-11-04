@@ -12,11 +12,7 @@ function multipartBody(field: string, filename: string, content: Buffer) {
 describe("POST /api/transcribe", () => {
   it("returns the transcript for an uploaded recording", async () => {
     const app = buildApp(loadConfig({}), {
-      transcribe: async (audio, filename) => ({
-        text: `got ${audio.length} bytes from ${filename}`,
-        segments: [],
-        elapsedMs: 1,
-      }),
+      transcribe: async (audio, filename) => ({ text: `got ${audio.length} bytes from ${filename}`, words: [], segments: [], elapsedMs: 1 }),
     });
     const { body, contentType } = multipartBody("audio", "memo.webm", Buffer.from("abcd"));
     const res = await app.inject({ method: "POST", url: "/api/transcribe", payload: body, headers: { "content-type": contentType } });
@@ -34,5 +30,33 @@ describe("POST /api/transcribe", () => {
     const res = await app.inject({ method: "POST", url: "/api/transcribe", payload: body, headers: { "content-type": contentType } });
     expect(res.statusCode).toBe(500);
     expect(res.json().error).toContain("whisper-cli");
+  });
+});
+
+describe("POST /api/clean", () => {
+  it("explains how to add an API key when none is set", async () => {
+    const app = buildApp(loadConfig({ ANTHROPIC_API_KEY: "" }));
+    const res = await app.inject({ method: "POST", url: "/api/clean", payload: { words: ["hi"] } });
+    expect(res.statusCode).toBe(503);
+    expect(res.json().error).toContain("ANTHROPIC_API_KEY");
+  });
+
+  it("passes words and restored words to the cleaner", async () => {
+    let received: unknown;
+    const app = buildApp(loadConfig({}), {
+      clean: async (words, mustKeep) => {
+        received = { words, mustKeep };
+        return { cleanup: {} as never, check: {} as never, model: "m", elapsedMs: 1 };
+      },
+    });
+    const res = await app.inject({ method: "POST", url: "/api/clean", payload: { words: ["um", "hi"], mustKeep: [0] } });
+    expect(res.statusCode).toBe(200);
+    expect(received).toEqual({ words: ["um", "hi"], mustKeep: [0] });
+  });
+
+  it("rejects a malformed body", async () => {
+    const app = buildApp(loadConfig({}), { clean: async () => ({}) as never });
+    const res = await app.inject({ method: "POST", url: "/api/clean", payload: { words: [] } });
+    expect(res.statusCode).toBe(400);
   });
 });

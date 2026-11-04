@@ -13,7 +13,15 @@ export function HealthBanner({ health, unreachable }: Props) {
       </p>
     );
   }
-  if (!health || health.ok) return null;
+  if (!health) return null;
+  if (health.demo) {
+    return (
+      <p className="notice" role="status">
+        Demo mode: any recording becomes a sample memo with a recorded Claude cleanup. The fact check runs for real. Run{" "}
+        <code>npm run dev</code> to use your own voice.
+      </p>
+    );
+  }
 
   const missing = [
     !health.ffmpeg && "ffmpeg",
@@ -22,8 +30,18 @@ export function HealthBanner({ health, unreachable }: Props) {
   ].filter(Boolean);
 
   return (
-    <p className="notice" role="status">
-      Missing {missing.join(", ")}. Run <code>npm run setup:whisper</code>, then restart <code>npm run dev</code>.
-    </p>
+    <>
+      {missing.length > 0 && (
+        <p className="notice" role="status">
+          Missing {missing.join(", ")}. Run <code>npm run setup:whisper</code>, then restart <code>npm run dev</code>.
+        </p>
+      )}
+      {!health.claude && (
+        <p className="notice" role="status">
+          Transcription works, but the clean note needs Claude. Add <code>ANTHROPIC_API_KEY</code> to <code>.env</code> and restart{" "}
+          <code>npm run dev</code>.
+        </p>
+      )}
+    </>
   );
 }

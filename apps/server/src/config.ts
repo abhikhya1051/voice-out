@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 /** Repo root: apps/server/src (or dist) -> ../../.. */
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
-dotenv.config({ path: path.join(ROOT, ".env") });
+dotenv.config({ path: path.join(ROOT, ".env"), quiet: true });
 
 export interface Config {
   port: number;
@@ -13,6 +13,8 @@ export interface Config {
   whisperModel: string;
   ffmpegBin: string;
   maxUploadBytes: number;
+  anthropicApiKey: string | null;
+  claudeModel: string;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -23,5 +25,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     whisperModel: path.isAbsolute(model) ? model : path.join(ROOT, model),
     ffmpegBin: env.FFMPEG_BIN ?? "ffmpeg",
     maxUploadBytes: 50 * 1024 * 1024,
+    anthropicApiKey: env.ANTHROPIC_API_KEY?.trim() || null,
+    claudeModel: env.CLAUDE_MODEL?.trim() || "claude-haiku-5-5",
   };
 }
