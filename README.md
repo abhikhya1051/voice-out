@@ -33,7 +33,7 @@ npm run setup:whisper   # installs whisper-cpp + ffmpeg, downloads the small.en 
 npm run dev             # http://localhost:5173
 ```
 
-On Apple Silicon, whisper.cpp uses Metal and transcribes a 30-second memo in a few seconds. Cleanup uses `claude-haiku-5-5` by default (a fraction of a cent per memo); set `CLAUDE_MODEL=claude-sonnet-5-5` in `.env` for harder memos.
+On Apple Silicon, whisper.cpp uses Metal and transcribes a 30-second memo in a few seconds. Some whisper.cpp builds crash while setting up Metal; setup tests for this and switches to the CPU (`WHISPER_GPU=false`), and the server also retries on the CPU if a GPU run fails. Cleanup uses `claude-haiku-5-5` by default (a fraction of a cent per memo); set `CLAUDE_MODEL=claude-sonnet-5-5` in `.env` for harder memos.
 
 ## How the receipts work
 

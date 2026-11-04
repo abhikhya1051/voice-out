@@ -12,6 +12,8 @@ export interface Config {
   whisperBin: string;
   whisperModel: string;
   ffmpegBin: string;
+  /** Try the GPU (Metal) first. Set WHISPER_GPU=false to always use the CPU. */
+  whisperGpu: boolean;
   maxUploadBytes: number;
   anthropicApiKey: string | null;
   claudeModel: string;
@@ -24,6 +26,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     whisperBin: env.WHISPER_BIN ?? "whisper-cli",
     whisperModel: path.isAbsolute(model) ? model : path.join(ROOT, model),
     ffmpegBin: env.FFMPEG_BIN ?? "ffmpeg",
+    whisperGpu: !/^(false|0|no|off)$/i.test(env.WHISPER_GPU?.trim() ?? ""),
     maxUploadBytes: 50 * 1024 * 1024,
     anthropicApiKey: env.ANTHROPIC_API_KEY?.trim() || null,
     claudeModel: env.CLAUDE_MODEL?.trim() || "claude-haiku-5-5",

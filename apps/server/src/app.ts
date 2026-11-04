@@ -25,7 +25,13 @@ export function buildApp(config: Config, deps: AppDeps = {}) {
     logger: { level: process.env.NODE_ENV === "test" ? "silent" : "info" },
     bodyLimit: 5 * 1024 * 1024,
   });
-  const transcribe = deps.transcribe ?? ((audio: Buffer, filename: string) => defaultTranscribe(audio, filename, config));
+  const transcribe =
+    deps.transcribe ??
+    ((audio: Buffer, filename: string) =>
+      defaultTranscribe(audio, filename, config, {
+        onGpuFallback: (err) =>
+          app.log.warn(`whisper.cpp failed on the GPU, retrying on the CPU. Set WHISPER_GPU=false in .env to skip the GPU. (${err.message.split("\n")[0]})`),
+      }));
   const clean =
     deps.clean ??
     (config.anthropicApiKey

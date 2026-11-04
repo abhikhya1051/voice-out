@@ -5,7 +5,26 @@ export interface RunResult {
   stderr: string;
 }
 
-/** Runs a command and resolves with its output; rejects with stderr on a non-zero exit. */
+/** A command that started but failed. `crashed` means it was killed by a signal (abort, segfault) rather than exiting. */
+export class RunError extends Error {
+  constructor(
+    message: string,
+    readonly cmd: string,
+    readonly stderr: string,
+    readonly crashed: boolean,
+  ) {
+    super(message);
+  }
+}
+
+/** The useful part of a long stderr: lines that name the problem, else the last few lines. */
+export function summarizeStderr(stderr: string): string {
+  const lines = stderr.split("\n").map((l) => l.trim()).filter(Boolean);
+  const telling = lines.filter((l) => /error|assert|failed|unable|cannot|not found|invalid/i.test(l));
+  return (telling.length ? telling.slice(0, 3) : lines.slice(-3)).join("\n");
+}
+
+/** Runs a command and resolves with its output; rejects with a RunError on failure. */
 export function run(cmd: string, args: string[]): Promise<RunResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"] });
@@ -20,9 +39,11 @@ export function run(cmd: string, args: string[]): Promise<RunResult> {
           : err,
       );
     });
-    child.on("close", (code) => {
-      if (code === 0) resolve({ stdout, stderr });
-      else reject(new Error(`${cmd} exited with code ${code}: ${stderr.trim().split("\n").slice(-5).join("\n")}`));
+    child.on("close", (code, signal) => {
+      if (code === 0) return resolve({ stdout, stderr });
+      const detail = summarizeStderr(stderr);
+      const how = signal ? `crashed (${signal})` : `exited with code ${code}`;
+      reject(new RunError(`${cmd} ${how}${detail ? `: ${detail}` : ""}`, cmd, stderr, code === null));
     });
   });
 }

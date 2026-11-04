@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { Config } from "../config.js";
-import { run as defaultRun, type Runner } from "./run.js";
+import { run as defaultRun, RunError, type Runner } from "./run.js";
 
 /** One spoken word with its punctuation attached, e.g. "um," or "Tuesday." */
 export interface Word {
@@ -103,6 +103,8 @@ export function parseWhisperJson(raw: string): Omit<Transcript, "elapsedMs"> {
 
 export interface TranscribeDeps {
   run?: Runner;
+  /** Called when the GPU run fails and transcription retries on the CPU. */
+  onGpuFallback?: (err: RunError) => void;
 }
 
 /** Converts any browser/phone audio to 16 kHz mono WAV, then runs whisper.cpp on it. */
@@ -124,7 +126,7 @@ export async function transcribe(
 
     await run(config.ffmpegBin, ["-hide_banner", "-loglevel", "error", "-y", "-i", input, "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", wav]);
 
-    await run(config.whisperBin, [
+    const args = [
       "-m", config.whisperModel,
       "-f", wav,
       "-l", "en",
@@ -132,7 +134,20 @@ export async function transcribe(
       "-oj", "-ojf", // JSON with per-token timestamps, so every word knows when it was said
       "-of", outBase,
       "-np",
-    ]);
+    ];
+    if (!config.whisperGpu) {
+      await run(config.whisperBin, [...args, "-ng"]);
+    } else {
+      try {
+        await run(config.whisperBin, args);
+      } catch (err) {
+        // Some whisper.cpp builds crash while setting up the GPU (Metal). The CPU path is
+        // still fast on Apple Silicon, so retry there instead of failing the recording.
+        if (!(err instanceof RunError)) throw err;
+        deps.onGpuFallback?.(err);
+        await run(config.whisperBin, [...args, "-ng"]);
+      }
+    }
 
     const parsed = parseWhisperJson(await readFile(`${outBase}.json`, "utf8"));
     return { ...parsed, elapsedMs: Date.now() - started };

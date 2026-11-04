@@ -2,7 +2,7 @@ import { writeFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { loadConfig } from "../config.js";
 import { DISFLUENCY_PROMPT, parseWhisperJson, transcribe } from "./whisper.js";
-import type { Runner } from "./run.js";
+import { RunError, summarizeStderr, type Runner } from "./run.js";
 
 const tok = (text: string, from: number, to: number) => ({ text, offsets: { from, to } });
 
@@ -69,6 +69,45 @@ describe("transcribe", () => {
     expect(args[args.indexOf("-m") + 1]).toBe("/models/test.bin");
     expect(args[args.indexOf("--prompt") + 1]).toBe(DISFLUENCY_PROMPT);
     expect(args).toContain("-ojf");
+    expect(args).not.toContain("-ng");
     expect(t.words).toHaveLength(8);
+  });
+
+  it("retries on the CPU when whisper crashes on the GPU", async () => {
+    const whisperCalls: string[][] = [];
+    const fakeRun: Runner = async (cmd, args) => {
+      if (cmd !== "whisper-cli") return { stdout: "", stderr: "" };
+      whisperCalls.push(args);
+      if (!args.includes("-ng")) throw new RunError("whisper-cli crashed (SIGABRT)", cmd, "ggml_metal_init: error", true);
+      await writeFile(`${args[args.indexOf("-of") + 1]}.json`, fullJson);
+      return { stdout: "", stderr: "" };
+    };
+    let fellBack = false;
+    const t = await transcribe(Buffer.from("x"), "memo.webm", loadConfig({}), { run: fakeRun, onGpuFallback: () => (fellBack = true) });
+    expect(whisperCalls).toHaveLength(2);
+    expect(whisperCalls[1]).toContain("-ng");
+    expect(fellBack).toBe(true);
+    expect(t.words).toHaveLength(8);
+  });
+
+  it("goes straight to the CPU when WHISPER_GPU=false", async () => {
+    const whisperCalls: string[][] = [];
+    const fakeRun: Runner = async (cmd, args) => {
+      if (cmd === "whisper-cli") {
+        whisperCalls.push(args);
+        await writeFile(`${args[args.indexOf("-of") + 1]}.json`, fullJson);
+      }
+      return { stdout: "", stderr: "" };
+    };
+    await transcribe(Buffer.from("x"), "memo.webm", loadConfig({ WHISPER_GPU: "false" }), { run: fakeRun });
+    expect(whisperCalls).toHaveLength(1);
+    expect(whisperCalls[0]).toContain("-ng");
+  });
+});
+
+describe("summarizeStderr", () => {
+  it("prefers lines that name the problem over a stack trace", () => {
+    const stderr = "whisper_init_state: loading\nggml_metal_init: error: failed to compile shaders\n5 libwhisper.dylib 0x0001 whisper_sched_graph_init\n6 libwhisper.dylib 0x0002 main";
+    expect(summarizeStderr(stderr)).toBe("ggml_metal_init: error: failed to compile shaders");
   });
 });

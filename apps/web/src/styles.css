@@ -182,6 +182,8 @@ button.link:disabled { opacity: 0.5; cursor: default; }
   color: var(--muted);
   border-left: 2px solid var(--highlight);
   padding-left: 12px;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
 }
 .notice.is-error { border-color: var(--rec); color: var(--rec); }
 code { font: 13px ui-monospace, Menlo, monospace; }
