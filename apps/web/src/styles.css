@@ -185,7 +185,19 @@ button.link:disabled { opacity: 0.5; cursor: default; }
   overflow-wrap: anywhere;
   white-space: pre-line;
 }
-.notice.is-error { border-color: var(--rec); color: var(--rec); }
+.notice.is-error { border-color: var(--rec); color: var(--rec); display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.notice p { margin: 0; }
+.retry {
+  font: 500 14px var(--sans);
+  color: var(--paper);
+  background: var(--rec);
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 14px;
+  cursor: pointer;
+}
+.retry:focus-visible { outline: 2px solid var(--rec); outline-offset: 3px; }
+.retry:disabled { opacity: 0.5; cursor: default; }
 code { font: 13px ui-monospace, Menlo, monospace; }
 .quiet { margin: 0; font-style: italic; color: var(--muted); }
 

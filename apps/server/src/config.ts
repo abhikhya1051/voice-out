@@ -21,6 +21,8 @@ export interface Config {
   claudeModel: string;
   geminiApiKey: string | null;
   geminiModel: string;
+  /** Tried once if the main Gemini model is busy or out of quota. Empty to disable. */
+  geminiFallbackModel: string | null;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -43,5 +45,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     claudeModel: env.CLAUDE_MODEL?.trim() || "claude-haiku-5-5",
     geminiApiKey,
     geminiModel: env.GEMINI_MODEL?.trim() || "gemini-3.1-flash-lite",
+    geminiFallbackModel: env.GEMINI_FALLBACK_MODEL === undefined ? "gemini-3.5-flash-lite" : env.GEMINI_FALLBACK_MODEL.trim() || null,
   };
 }

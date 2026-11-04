@@ -19,8 +19,8 @@ export interface CleanResult {
  */
 export async function cleanAndCheck(words: string[], cleaner: Cleaner, mustKeep: number[] = [], recordedOn: string = localToday()): Promise<CleanResult> {
   const started = Date.now();
-  const cleanup = await cleaner.clean(words, mustKeep);
-  return { ...checkCleanup(words, cleanup, recordedOn, mustKeep), model: cleaner.model, elapsedMs: Date.now() - started };
+  const { cleanup, model } = await cleaner.clean(words, mustKeep);
+  return { ...checkCleanup(words, cleanup, recordedOn, mustKeep), model, elapsedMs: Date.now() - started };
 }
 
 /**

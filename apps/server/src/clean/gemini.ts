@@ -54,6 +54,13 @@ export async function cleanWithGemini(
   return normalizeCleanup(parsed.data, words.length, mustKeep);
 }
 
+/**
+ * The SDK doesn't retry unless asked. Retry busy/rate-limited/server errors a couple of times
+ * with short pauses (~1.5s, ~3s), so a brief overload doesn't fail the memo.
+ */
 export function createGeminiClient(apiKey: string): GeminiClient {
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenAI({
+    apiKey,
+    httpOptions: { retryOptions: { attempts: 3, initialDelay: 1.5, maxDelay: 5, httpStatusCodes: [429, 500, 502, 503, 504] } },
+  });
 }

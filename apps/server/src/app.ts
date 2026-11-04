@@ -34,7 +34,12 @@ export function buildApp(config: Config, deps: AppDeps = {}) {
         onGpuFallback: (err) =>
           app.log.warn(`whisper.cpp failed on the GPU, retrying on the CPU. Set WHISPER_GPU=false in .env to skip the GPU. (${err.message.split("\n")[0]})`),
       }));
-  const cleaner = deps.clean ? null : createCleaner(config);
+  const cleaner = deps.clean
+    ? null
+    : createCleaner(config, {
+        onFallback: (from, to, err) =>
+          app.log.warn(`${from} is busy or out of quota (${String((err as { message?: unknown })?.message ?? err).split("\n")[0]}); trying ${to}`),
+      });
   const clean =
     deps.clean ??
     (cleaner ? (words: string[], mustKeep: number[], recordedOn?: string) => cleanAndCheck(words, cleaner, mustKeep, recordedOn) : null);

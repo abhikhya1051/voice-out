@@ -76,3 +76,52 @@ describe("cleanupErrorMessage", () => {
     expect(cleanupErrorMessage(new TypeError("fetch failed: getaddrinfo ENOTFOUND generativelanguage.googleapis.com"), "gemini", "m")).toMatch(/Couldn't reach Gemini/);
   });
 });
+
+describe("Gemini fallback model", () => {
+  const config = loadConfig({ GEMINI_API_KEY: "g" });
+  const ok = JSON.stringify(SAMPLE_TOOL_INPUT);
+
+  function scripted(byModel: Record<string, () => unknown>) {
+    const seen: string[] = [];
+    const client: GeminiClient = {
+      models: {
+        generateContent: async (params) => {
+          seen.push(params.model);
+          const outcome = byModel[params.model]!();
+          return { text: outcome as string, candidates: [{ finishReason: "STOP" }] };
+        },
+      },
+    };
+    return { client, seen };
+  }
+  const busy = () => {
+    throw Object.assign(new Error("The model is overloaded. Please try again later."), { status: 503 });
+  };
+
+  it("tries the backup model when the main one is busy, and reports which model wrote the note", async () => {
+    const { client, seen } = scripted({ "gemini-3.1-flash-lite": busy, "gemini-3.5-flash-lite": () => ok });
+    let fellBack = "";
+    const cleaner = createCleaner(config, { geminiClient: client, onFallback: (from, to) => (fellBack = `${from}->${to}`) })!;
+    const { model } = await cleaner.clean(SAMPLE_WORDS, []);
+    expect(seen).toEqual(["gemini-3.1-flash-lite", "gemini-3.5-flash-lite"]);
+    expect(model).toBe("gemini-3.5-flash-lite");
+    expect(fellBack).toBe("gemini-3.1-flash-lite->gemini-3.5-flash-lite");
+  });
+
+  it("doesn't fall back for a bad key, and reports the main model's error if the backup fails too", async () => {
+    const badKey = () => {
+      throw Object.assign(new Error("API key not valid"), { status: 400 });
+    };
+    const a = scripted({ "gemini-3.1-flash-lite": badKey, "gemini-3.5-flash-lite": () => ok });
+    await expect(createCleaner(config, { geminiClient: a.client })!.clean(SAMPLE_WORDS, [])).rejects.toThrow(/API key/);
+    expect(a.seen).toEqual(["gemini-3.1-flash-lite"]);
+
+    const b = scripted({ "gemini-3.1-flash-lite": busy, "gemini-3.5-flash-lite": () => { throw Object.assign(new Error("not found"), { status: 404 }); } });
+    await expect(createCleaner(config, { geminiClient: b.client })!.clean(SAMPLE_WORDS, [])).rejects.toThrow(/overloaded/);
+  });
+
+  it("can be turned off with an empty GEMINI_FALLBACK_MODEL", () => {
+    expect(loadConfig({ GEMINI_FALLBACK_MODEL: "" }).geminiFallbackModel).toBeNull();
+    expect(loadConfig({}).geminiFallbackModel).toBe("gemini-3.5-flash-lite");
+  });
+});

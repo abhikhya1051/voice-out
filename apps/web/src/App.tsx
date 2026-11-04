@@ -24,6 +24,8 @@ export function App() {
   const [unreachable, setUnreachable] = useState(false);
   const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState<string | null>(null);
+  /** The last failure was the cleanup (not transcription), so it can be retried without re-recording. */
+  const [cleanFailed, setCleanFailed] = useState(false);
   const [memo, setMemo] = useState<Memo | null>(null);
   const [restoring, setRestoring] = useState<ReadonlySet<number>>(new Set());
   /** Words restored in earlier re-cleans stay protected in later ones. */
@@ -42,12 +44,14 @@ export function App() {
   const runClean = useCallback(async (transcript: Transcript, mustKeep: number[], recordedAt: Date) => {
     setStage("cleaning");
     setError(null);
+    setCleanFailed(false);
     try {
       const result = await clean(transcript.words.map((w) => w.text), mustKeep, localYmd(recordedAt));
       setMemo((m) => (m ? { ...m, result } : m));
       setRestoring(new Set());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Cleanup failed.");
+      setCleanFailed(true);
     } finally {
       setStage("idle");
     }
@@ -57,6 +61,7 @@ export function App() {
     async (recording: Recording) => {
       setStage("transcribing");
       setError(null);
+      setCleanFailed(false);
       setRestoring(new Set());
       setKept(new Set());
       setActiveSpan(null);
@@ -101,6 +106,11 @@ export function App() {
     void runClean(memo.transcript, [...mustKeep].sort((a, b) => a - b), memo.recording.recordedAt);
   }, [memo, kept, restoring, runClean]);
 
+  const retryClean = useCallback(() => {
+    if (!memo?.transcript) return;
+    void runClean(memo.transcript, [...kept].sort((a, b) => a - b), memo.recording.recordedAt);
+  }, [memo, kept, runClean]);
+
   const playSpan = useCallback(
     (span: Span) => {
       const words = memo?.transcript?.words;
@@ -131,7 +141,16 @@ export function App() {
       <HealthBanner health={health} unreachable={unreachable} />
       <Recorder busy={busy} onRecording={handleRecording} onUpload={handleUpload} />
 
-      {error && <p className="notice is-error" role="alert">{error}</p>}
+      {error && (
+        <div className="notice is-error" role="alert">
+          <p>{error}</p>
+          {cleanFailed && memo?.transcript && (
+            <button type="button" className="retry" onClick={retryClean} disabled={busy}>
+              Try cleanup again
+            </button>
+          )}
+        </div>
+      )}
 
       {memo && (
         <article className="entry" aria-label="Memo">
