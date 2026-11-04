@@ -25,7 +25,7 @@ Open http://localhost:5173 and press the mic (or upload any audio). Demo mode sk
 
 ## Run it with your own voice (macOS)
 
-Needs Node 20+, [Homebrew](https://brew.sh), and one API key: a free [Gemini key](https://aistudio.google.com/apikey) or an [Anthropic key](https://console.anthropic.com).
+Needs Node 22.12+, [Homebrew](https://brew.sh), and one API key: a free [Gemini key](https://aistudio.google.com/apikey) or an [Anthropic key](https://console.anthropic.com).
 
 ```bash
 npm install

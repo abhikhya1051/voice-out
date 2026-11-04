@@ -35,8 +35,11 @@ export function useRecorder(onDone: (rec: Recording) => void) {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const rafRef = useRef<number>(0);
   const startedRef = useRef(0);
+  // Keep the latest callback without re-creating start/stop (updated after render, not during it)
   const onDoneRef = useRef(onDone);
-  onDoneRef.current = onDone;
+  useEffect(() => {
+    onDoneRef.current = onDone;
+  }, [onDone]);
 
   const cleanup = useCallback(() => {
     cancelAnimationFrame(rafRef.current);
