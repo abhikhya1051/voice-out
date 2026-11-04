@@ -51,6 +51,7 @@ export function normalizeCleanup(raw: Cleanup, wordCount: number, mustKeep: numb
     sentences: nonEmpty(raw.sentences),
     keyPoints: nonEmpty(raw.keyPoints),
     todos: nonEmpty(raw.todos).map((t) => (t.due?.trim() ? t : { ...t, due: undefined })),
+    dates: (raw.dates ?? []).filter((d) => d.from >= 0 && d.to < wordCount && d.from <= d.to),
   };
 }
 

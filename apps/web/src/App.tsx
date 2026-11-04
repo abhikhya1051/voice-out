@@ -7,6 +7,7 @@ import { Recorder } from "./components/Recorder";
 import { TranscriptView } from "./components/TranscriptView";
 import type { Recording } from "./hooks/useRecorder";
 import { useClipPlayer } from "./hooks/useClipPlayer";
+import { localYmd } from "./lib/dates";
 import { peaksFromBlob } from "./lib/peaks";
 
 type Stage = "idle" | "transcribing" | "cleaning";
@@ -38,11 +39,11 @@ export function App() {
     if (memo) URL.revokeObjectURL(memo.audioUrl);
   }, [memo?.audioUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const runClean = useCallback(async (transcript: Transcript, mustKeep: number[]) => {
+  const runClean = useCallback(async (transcript: Transcript, mustKeep: number[], recordedAt: Date) => {
     setStage("cleaning");
     setError(null);
     try {
-      const result = await clean(transcript.words.map((w) => w.text), mustKeep);
+      const result = await clean(transcript.words.map((w) => w.text), mustKeep, localYmd(recordedAt));
       setMemo((m) => (m ? { ...m, result } : m));
       setRestoring(new Set());
     } catch (err) {
@@ -71,7 +72,7 @@ export function App() {
       }
       if (transcript.words.length === 0) return setStage("idle");
       if (health && !health.cleanup) return setStage("idle");
-      await runClean(transcript, []);
+      await runClean(transcript, [], recording.recordedAt);
     },
     [health, runClean],
   );
@@ -97,7 +98,7 @@ export function App() {
     if (!memo?.transcript) return;
     const mustKeep = new Set([...kept, ...restoring]);
     setKept(mustKeep);
-    void runClean(memo.transcript, [...mustKeep].sort((a, b) => a - b));
+    void runClean(memo.transcript, [...mustKeep].sort((a, b) => a - b), memo.recording.recordedAt);
   }, [memo, kept, restoring, runClean]);
 
   const playSpan = useCallback(
@@ -167,7 +168,8 @@ export function App() {
 
           {memo.transcript && memo.result && (
             <p className="legend">
-              <s>struck</s> = cleaned up, tap to restore · <mark>highlighted</mark> = checked fact carried into your note · tap any note line to hear it
+              <s>struck</s> = cleaned up, tap to restore · <mark>highlighted</mark> = checked fact carried into your note · <span className="date-note">→ date</span> = worked
+              out by code from when you recorded · tap any note line to hear it
             </p>
           )}
         </article>

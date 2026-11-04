@@ -1,9 +1,9 @@
 import { normalizeCleanup } from "./clean/normalize.js";
 import { SAMPLE_TOOL_INPUT, SAMPLE_WORDS } from "./clean/fixtures.js";
-import type { CleanResult } from "./clean/pipeline.js";
+import { checkCleanup, type CleanResult } from "./clean/pipeline.js";
+import { localToday } from "./dates/resolve.js";
 import type { Cleanup } from "./clean/schema.js";
 import type { Transcript, Word } from "./transcribe/whisper.js";
-import { checkFacts } from "./verify/facts.js";
 
 /**
  * Demo mode (npm run demo): no Whisper, no API key. Any recording "transcribes" to a sample
@@ -28,7 +28,7 @@ export function demoTranscript(durationMs: number): Transcript {
   return { text: SAMPLE_WORDS.join(" "), words, segments, elapsedMs: 900 };
 }
 
-export function demoClean(words: string[], mustKeep: number[]): CleanResult {
+export function demoClean(words: string[], mustKeep: number[], recordedOn: string = localToday()): CleanResult {
   const cleanup = normalizeCleanup(SAMPLE_TOOL_INPUT as Cleanup, words.length, mustKeep);
-  return { cleanup, check: checkFacts(words, cleanup), model: "demo (recorded response)", elapsedMs: 1400 };
+  return { ...checkCleanup(words, cleanup, recordedOn), model: "demo (recorded response)", elapsedMs: 1400 };
 }

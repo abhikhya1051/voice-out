@@ -336,6 +336,27 @@ mark,
 .reclean:focus-visible { outline: 2px solid var(--ink-soft); outline-offset: 3px; }
 .reclean:disabled { opacity: 0.5; cursor: default; }
 
+/* Pencil date notes: worked out by code, never presented as your words */
+.date-note {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 0 6px;
+  font: 500 18px/1.3 var(--hand);
+  color: var(--ink-soft);
+  border: 1px dashed color-mix(in srgb, var(--ink-soft) 45%, transparent);
+  border-radius: 4px;
+  white-space: nowrap;
+  cursor: help;
+}
+.date-note.is-inline {
+  margin-left: 4px;
+  padding: 0 3px;
+  border: 0;
+  font-size: 17px;
+  vertical-align: 1px;
+}
+.legend .date-note { margin-left: 0; font-size: 15px; padding: 0 3px; border: 0; }
+
 .legend { margin: 0; font: 13px/1.6 var(--sans); color: var(--muted); }
 .legend s { color: var(--pencil); }
 

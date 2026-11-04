@@ -25,6 +25,16 @@ export const CleanupSchema = z.object({
   todos: z
     .array(z.object({ text: z.string(), due: z.string().optional().describe("Deadline exactly as spoken, if any"), ...span }))
     .describe("Concrete action items the speaker gave themselves, each citing its source words"),
+  dates: z
+    .array(
+      z.object({
+        ...span,
+        anchorFrom: z.number().int().min(0).optional().describe("For a phrase like 'the next day': first word of the day it is relative to"),
+        anchorTo: z.number().int().min(0).optional().describe("Last word of that day"),
+      }),
+    )
+    .optional()
+    .describe("Every phrase naming a specific day (today, tomorrow, Friday, the next day...). Word positions only; the dates are computed by code"),
 });
 
 export type Cleanup = z.infer<typeof CleanupSchema>;

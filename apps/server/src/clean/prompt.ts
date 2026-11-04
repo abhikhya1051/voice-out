@@ -22,7 +22,13 @@ You receive the transcript as numbered words. You never rewrite the transcript. 
    - keyPoints: up to 5, only if the memo has distinct points. Empty for a single thought.
    - todos: only things the speaker said they need or want to do. Put a deadline in "due" only if they said one, in their words ("by tomorrow").
    - title: at most 8 words, from what was said.
-   - type: memo, todo, journal, idea, meeting or note.`;
+   - type: memo, todo, journal, idea, meeting or note.
+   - Keep the speaker's own date words in the note ("by tomorrow", "the next day"). Don't turn them into weekdays or dates; code does that.
+
+3. DATES: list every KEPT phrase that names a specific day, as {from, to}: today, tonight, tomorrow, yesterday, a weekday ("Friday", "next Friday"), "in two days", an explicit date ("November 7th"), and days relative to another day ("the next day", "the day after", "the day before", "two days later").
+   - For a relative phrase, set anchorFrom/anchorTo to the day it is relative to. "decided on Friday and the invites sent the next day" -> "the next day" with its anchor at "Friday".
+   - Skip vague phrases (soon, ASAP, next week, sometime) and any day the speaker took back.
+   - Don't work out the dates yourself.`;
 
 /** Same rules for every model; only the last line differs by how the answer is returned. */
 export function systemPrompt(output: "tool" | "json"): string {

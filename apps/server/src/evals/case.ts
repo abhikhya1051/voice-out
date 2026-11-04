@@ -13,7 +13,12 @@ export interface EvalCase {
   mustSay: string[];
   /** Regexes that must NOT match the clean note (e.g. a corrected value). */
   mustNotSay?: string[];
+  /** Date phrases that must be worked out, as phrase -> YYYY-MM-DD, for a memo recorded on EVAL_RECORDED_ON. */
+  dates?: Record<string, string>;
 }
+
+/** Evals pretend every memo was recorded on this day (a Tuesday), so date answers are fixed. */
+export const EVAL_RECORDED_ON = "2026-11-03";
 
 export interface ParsedCase {
   words: string[];

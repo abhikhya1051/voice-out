@@ -35,6 +35,15 @@ export interface Cleanup {
   sentences: NoteItem[];
   keyPoints: NoteItem[];
   todos: (NoteItem & { due?: string })[];
+  dates?: (Span & { anchorFrom?: number; anchorTo?: number })[];
+}
+
+/** A date phrase worked out by code: "the next day" -> Sat, Nov 7. */
+export interface ResolvedDate extends Span {
+  phrase: string;
+  date: string;
+  label: string;
+  basis: string;
 }
 
 export type ItemKind = "sentence" | "keyPoint" | "todo";
@@ -56,6 +65,7 @@ export interface FactCheck {
 export interface CleanResult {
   cleanup: Cleanup;
   check: FactCheck;
+  dates: ResolvedDate[];
   model: string;
   elapsedMs: number;
 }
@@ -91,11 +101,12 @@ export async function transcribe(audio: Blob, filename: string): Promise<Transcr
   return res.json() as Promise<Transcript>;
 }
 
-export async function clean(words: string[], mustKeep: number[] = []): Promise<CleanResult> {
+/** `recordedOn` is the memo's local date (YYYY-MM-DD), so "tomorrow" means the speaker's tomorrow. */
+export async function clean(words: string[], mustKeep: number[] = [], recordedOn?: string): Promise<CleanResult> {
   const res = await fetch("/api/clean", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ words, mustKeep }),
+    body: JSON.stringify({ words, mustKeep, recordedOn }),
   });
   if (!res.ok) throw await errorFrom(res);
   return res.json() as Promise<CleanResult>;

@@ -10,7 +10,7 @@ const app = buildApp(
   demo
     ? {
         transcribe: async () => demoTranscript(0),
-        clean: async (words, mustKeep) => demoClean(words, mustKeep),
+        clean: async (words, mustKeep, recordedOn) => demoClean(words, mustKeep, recordedOn),
         demo: true,
       }
     : {},

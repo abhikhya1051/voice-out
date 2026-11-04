@@ -1,5 +1,6 @@
 import { useState, type KeyboardEvent } from "react";
-import type { CleanResult, Flag, ItemKind, NoteItem, Span } from "../api";
+import type { CleanResult, Flag, ItemKind, NoteItem, ResolvedDate, Span } from "../api";
+import { placeDates } from "../lib/dates";
 import { cutCounts, REASON_LABEL } from "../lib/marks";
 import { formatSeconds } from "../lib/format";
 
@@ -18,6 +19,8 @@ export function NoteView({ result, onPoint, onPlay, restoringCount, onReclean, b
   const [done, setDone] = useState<ReadonlySet<number>>(new Set());
   const flagsFor = (kind: ItemKind, index: number) => check.flags.filter((f) => f.kind === kind && f.index === index);
   const invented = check.flags.length;
+  const datesAt = placeDates(result);
+  const dateCount = result.dates?.length ?? 0;
 
   // Inline spans (not <button>, which is always a block-ish box) so sentences flow as one paragraph
   const traceable = (item: NoteItem) => ({
@@ -52,6 +55,7 @@ export function NoteView({ result, onPoint, onPlay, restoringCount, onReclean, b
             <span className={`trace${flagsFor("sentence", i).length ? " is-flagged" : ""}`} {...traceable(s)}>
               {s.text}
             </span>
+            <DateNotes dates={datesAt.get(`sentence-${i}`)} />
             <FlagNotes flags={flagsFor("sentence", i)} />
           </span>
         ))}
@@ -102,6 +106,7 @@ export function NoteView({ result, onPoint, onPlay, restoringCount, onReclean, b
                     {t.text}
                   </span>
                   {t.due && <span className="due">{t.due}</span>}
+                  <DateNotes dates={datesAt.get(`todo-${i}`)} />
                   <FlagNotes flags={flagsFor("todo", i)} />
                 </li>
               );
@@ -120,7 +125,8 @@ export function NoteView({ result, onPoint, onPlay, restoringCount, onReclean, b
           {cutCounts(result)
             .map((c) => `${c.count} ${REASON_LABEL[c.reason]}${c.count === 1 ? "" : "s"}`)
             .join(" · ")}{" "}
-          cut · cleaned in {formatSeconds(result.elapsedMs)}
+          cut · {dateCount > 0 && `${dateCount} ${dateCount === 1 ? "date" : "dates"} worked out by code · `}cleaned in{" "}
+          {formatSeconds(result.elapsedMs)}
         </p>
         {restoringCount > 0 && (
           <button type="button" className="reclean" onClick={onReclean} disabled={busy}>
@@ -129,6 +135,20 @@ export function NoteView({ result, onPoint, onPlay, restoringCount, onReclean, b
         )}
       </footer>
     </section>
+  );
+}
+
+/** "the next day → Sat, Nov 7", in pencil: worked out, not said. */
+function DateNotes({ dates }: { dates?: ResolvedDate[] }) {
+  if (!dates?.length) return null;
+  return (
+    <>
+      {dates.map((d, i) => (
+        <span key={i} className="date-note" title={`Worked out: ${d.basis}`}>
+          {d.phrase} → {d.label}
+        </span>
+      ))}
+    </>
   );
 }
 

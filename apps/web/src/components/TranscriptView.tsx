@@ -15,6 +15,7 @@ interface Props {
 /** What you actually said, on ruled lines: struck = cleaned up, highlighted = carried into the note. */
 export function TranscriptView({ transcript, result, restoring, onToggleRestore, activeSpan, onPlayWord }: Props) {
   const marks = wordMarks(transcript.words.length, result, restoring);
+  const dateEndingAt = new Map((result?.dates ?? []).map((d) => [d.to, d]));
   const segments = transcript.segments.length
     ? transcript.segments
     : [{ startMs: 0, endMs: 0, text: transcript.text, firstWord: 0, endWord: transcript.words.length }];
@@ -54,10 +55,16 @@ export function TranscriptView({ transcript, result, restoring, onToggleRestore,
                     </span>
                   );
                 }
+                const date = dateEndingAt.get(i);
                 return (
                   <span key={i} className={source}>
                     {space}
                     {mark.kind === "fact" ? <mark className="fact">{word.text}</mark> : word.text}
+                    {date && (
+                      <span className="date-note is-inline" title={`Worked out: ${date.basis}`}>
+                        → {date.label}
+                      </span>
+                    )}
                   </span>
                 );
               })}

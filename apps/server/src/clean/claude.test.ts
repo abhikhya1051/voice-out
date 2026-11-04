@@ -4,6 +4,7 @@ import { SAMPLE_TOOL_INPUT, SAMPLE_WORDS } from "./fixtures.js";
 import { normalizeCleanup } from "./normalize.js";
 import { buildUserMessage } from "./prompt.js";
 import { checkFacts } from "../verify/facts.js";
+import { checkCleanup } from "./pipeline.js";
 
 function fakeClient(input: unknown, stop_reason: "tool_use" | "max_tokens" = "tool_use") {
   const calls: Parameters<MessagesClient["messages"]["create"]>[0][] = [];
@@ -46,6 +47,22 @@ describe("cleanWithClaude", () => {
     expect(check.flags).toEqual([]);
     expect(check.checked).toBeGreaterThan(8);
     expect(check.factWords).toEqual(expect.arrayContaining([10, 22, 25, 29, 47, 54, 69]));
+  });
+});
+
+describe("checkCleanup", () => {
+  it("works out the sample memo's dates from the recording day and accepts them in the note", () => {
+    const cleanup = normalizeCleanup(SAMPLE_TOOL_INPUT as never, SAMPLE_WORDS.length);
+    const { dates, check } = checkCleanup(SAMPLE_WORDS, cleanup, "2026-11-03");
+    expect(dates.map((d) => [d.phrase, d.label])).toEqual([
+      ["Thursday", "Thu, Nov 5"],
+      ["Tuesday", "Tue, Nov 3"],
+      ["tomorrow", "Wed, Nov 4"],
+    ]);
+    // A note that names the worked-out day ("Wednesday" for "tomorrow") isn't flagged as invented
+    const withDay = { ...cleanup, sentences: [{ text: "Email Marcus the budget numbers by Wednesday.", from: 43, to: 54 }] };
+    expect(checkCleanup(SAMPLE_WORDS, withDay, "2026-11-03").check.flags).toEqual([]);
+    expect(check.flags).toEqual([]);
   });
 });
 

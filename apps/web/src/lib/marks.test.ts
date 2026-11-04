@@ -3,6 +3,7 @@ import type { CleanResult } from "../api";
 import { cutCounts, wordMarks } from "./marks";
 
 const result: CleanResult = {
+  dates: [],
   model: "m",
   elapsedMs: 1,
   cleanup: {

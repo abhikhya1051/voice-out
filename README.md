@@ -8,6 +8,7 @@ Most voice-to-text apps are black boxes: you speak, tidy text comes back, and yo
 
 - **Every cut is visible.** Removed words stay in the transcript with a pencil strike-through and a reason (filler, false start, repeat, corrected). Tap one to restore it.
 - **Every fact is checked.** Names, numbers, dates and times in the note are verified against the words you actually said — by plain code, not another AI call. Anything that doesn't trace back gets flagged.
+- **Dates are worked out, never guessed.** "Tomorrow", "Friday" and "the next day" get a pencil note with the real date (*the next day → Sat, Nov 7*). The model only links "the next day" to "Friday"; plain code does the calendar math from the day you recorded.
 - **Every line links to your voice.** Tap a sentence in the note to hear yourself say it; its source words light up in the transcript.
 - **Your audio never leaves your Mac.** Transcription runs locally with [whisper.cpp](https://github.com/ggerganov/whisper.cpp). Only the text goes to the cleanup model: Claude or Gemini (free tier), your choice.
 
@@ -78,7 +79,9 @@ mic ─▶ ffmpeg ─▶ whisper.cpp ─────────▶ words with t
 
 The result is the receipt at the bottom of every note: **"18 facts checked against your words · 0 invented"**.
 
-**4. Restoring is a constraint, not a suggestion.** Restored words are sent back as `mustKeep`, and the server removes them from any cut the model proposes, so a restored word can't be cut again.
+**4. Dates: the model links, code computes.** The model lists date phrases by word position, and for relative ones ("the next day") points at the day they hang off ("Friday"). [`dates/resolve.ts`](apps/server/src/dates/resolve.ts) turns them into calendar dates from the recording date: today/tomorrow/yesterday, weekdays ("next Friday" = the week after), "in three days", "the day before", explicit dates. Vague phrases ("ASAP", "next week") are left alone on purpose, and a day the speaker took back is never resolved. If the note says "Saturday" for "the next day", the fact check accepts it only because code worked it out.
+
+**5. Restoring is a constraint, not a suggestion.** Restored words are sent back as `mustKeep`, and the server removes them from any cut the model proposes, so a restored word can't be cut again.
 
 ## Evals
 
@@ -90,7 +93,7 @@ npm run eval -- negation     # one case
 CLEANUP_PROVIDER=gemini npm run eval
 ```
 
-It reports four numbers: fillers cut, meaningful words kept, facts kept, and facts invented, and writes them to [evals/RESULTS-gemini.md](evals/RESULTS-gemini.md) or [evals/RESULTS-claude.md](evals/RESULTS-claude.md), so the two models can be compared on the same cases.
+It reports five numbers: fillers cut, meaningful words kept, facts kept, dates worked out correctly (every eval memo is treated as recorded on Tue, Nov 3, 2026), and facts invented, and writes them to [evals/RESULTS-gemini.md](evals/RESULTS-gemini.md) or [evals/RESULTS-claude.md](evals/RESULTS-claude.md), so the two models can be compared on the same cases.
 
 ## Scripts
 
@@ -109,7 +112,8 @@ It reports four numbers: fillers cut, meaningful words kept, facts kept, and fac
 apps/server/src
   transcribe/   ffmpeg + whisper.cpp, tokens → words with timestamps
   clean/        shared prompt + Zod schema, Claude and Gemini providers, normalization
-  verify/       the deterministic fact check
+  verify/       the deterministic fact check and correction detector
+  dates/        relative dates -> calendar dates
   evals/        tricky cases + runner
   demo.ts       recorded responses for `npm run demo`
 apps/web/src

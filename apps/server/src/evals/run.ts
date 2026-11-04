@@ -12,7 +12,7 @@ import { loadConfig, ROOT } from "../config.js";
 import { cleanAndCheck } from "../clean/pipeline.js";
 import { cleanupErrorMessage, createCleaner } from "../clean/providers.js";
 import { cutMap } from "../clean/normalize.js";
-import { parseCase } from "./case.js";
+import { EVAL_RECORDED_ON, parseCase } from "./case.js";
 import { CASES } from "./cases.js";
 
 interface Row {
@@ -20,6 +20,7 @@ interface Row {
   fillersCut: [number, number];
   meaningKept: [number, number];
   factsKept: [number, number];
+  datesRight: [number, number];
   invented: number;
   notes: string[];
 }
@@ -39,7 +40,7 @@ for (const c of CASES.filter((c) => !only || c.name === only)) {
   process.stdout.write(`${c.name.padEnd(22)} `);
   let result;
   try {
-    result = await cleanAndCheck(words, cleaner);
+    result = await cleanAndCheck(words, cleaner, [], EVAL_RECORDED_ON);
   } catch (err) {
     console.log(`✗ ${cleanupErrorMessage(err, cleaner.provider, cleaner.model)}`);
     if ((err as { status?: number }).status === 429) {
@@ -48,7 +49,7 @@ for (const c of CASES.filter((c) => !only || c.name === only)) {
     }
     continue;
   }
-  const { cleanup, check } = result;
+  const { cleanup, check, dates } = result;
   const cut = cutMap(cleanup.cuts, words.length);
   const note = [cleanup.title, ...cleanup.sentences.map((s) => s.text), ...cleanup.todos.map((t) => `${t.text} ${t.due ?? ""}`)].join(" ");
 
@@ -62,12 +63,18 @@ for (const c of CASES.filter((c) => !only || c.name === only)) {
   if (missingFacts.length) notes.push(`missing: ${missingFacts.join(", ")}`);
   if (forbidden.length) notes.push(`said anyway: ${forbidden.join(", ")}`);
   for (const f of check.flags) notes.push(`flag: ${f.message}`);
+  const expectedDates = Object.entries(c.dates ?? {});
+  const wrongDates = expectedDates.filter(([phrase, date]) => !dates.some((d) => d.phrase.toLowerCase().includes(phrase.toLowerCase()) && d.date === date));
+  if (wrongDates.length) {
+    notes.push(`dates: ${wrongDates.map(([p, d]) => `"${p}" should be ${d}`).join(", ")} (got ${dates.map((d) => `"${d.phrase}"=${d.date}`).join(", ") || "none"})`);
+  }
 
   const row: Row = {
     name: c.name,
     fillersCut: [expectCut.size - missedCuts.length, expectCut.size],
     meaningKept: [expectKeep.size - wrongCuts.length, expectKeep.size],
     factsKept: [c.mustSay.length - missingFacts.length, c.mustSay.length],
+    datesRight: [expectedDates.length - wrongDates.length, expectedDates.length],
     invented: check.flags.length + forbidden.length,
     notes,
   };
@@ -88,6 +95,7 @@ const totals = {
   fillersCut: sum((r) => r.fillersCut),
   meaningKept: sum((r) => r.meaningKept),
   factsKept: sum((r) => r.factsKept),
+  datesRight: sum((r) => r.datesRight),
   invented: rows.reduce((a, r) => a + r.invented, 0),
 };
 
@@ -96,6 +104,7 @@ console.log(
     `fillers cut   ${pct(totals.fillersCut)} (${totals.fillersCut.join("/")})\n` +
     `meaning kept  ${pct(totals.meaningKept)} (${totals.meaningKept.join("/")})\n` +
     `facts kept    ${pct(totals.factsKept)} (${totals.factsKept.join("/")})\n` +
+    `dates right   ${pct(totals.datesRight)} (${totals.datesRight.join("/")})\n` +
     `invented      ${totals.invented}`,
 );
 
@@ -110,13 +119,14 @@ if (!only) {
     `| Fillers cut | ${pct(totals.fillersCut)} (${totals.fillersCut.join("/")}) |`,
     `| Meaningful words kept | ${pct(totals.meaningKept)} (${totals.meaningKept.join("/")}) |`,
     `| Facts kept | ${pct(totals.factsKept)} (${totals.factsKept.join("/")}) |`,
+    `| Dates worked out correctly | ${pct(totals.datesRight)} (${totals.datesRight.join("/")}) |`,
     `| Facts invented | ${totals.invented} |`,
     ``,
-    `| Case | Fillers cut | Meaning kept | Facts kept | Invented | Notes |`,
-    `| --- | --- | --- | --- | --- | --- |`,
+    `| Case | Fillers cut | Meaning kept | Facts kept | Dates | Invented | Notes |`,
+    `| --- | --- | --- | --- | --- | --- | --- |`,
     ...rows.map(
       (r) =>
-        `| ${r.name} | ${r.fillersCut.join("/")} | ${r.meaningKept[1] ? r.meaningKept.join("/") : "–"} | ${r.factsKept.join("/")} | ${r.invented} | ${r.notes.join("; ") || "✓"} |`,
+        `| ${r.name} | ${r.fillersCut.join("/")} | ${r.meaningKept[1] ? r.meaningKept.join("/") : "–"} | ${r.factsKept.join("/")} | ${r.datesRight[1] ? r.datesRight.join("/") : "–"} | ${r.invented} | ${r.notes.join("; ") || "✓"} |`,
     ),
     ``,
   ].join("\n");

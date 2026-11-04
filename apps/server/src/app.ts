@@ -10,7 +10,7 @@ import { transcribe as defaultTranscribe, type Transcript } from "./transcribe/w
 
 export interface AppDeps {
   transcribe?: (audio: Buffer, filename: string) => Promise<Transcript>;
-  clean?: (words: string[], mustKeep: number[]) => Promise<CleanResult>;
+  clean?: (words: string[], mustKeep: number[], recordedOn?: string) => Promise<CleanResult>;
   /** Demo mode: no local tools or API key needed. */
   demo?: boolean;
 }
@@ -18,6 +18,8 @@ export interface AppDeps {
 const CleanBody = z.object({
   words: z.array(z.string()).min(1).max(20000),
   mustKeep: z.array(z.number().int().min(0)).max(20000).default([]),
+  /** The day the memo was recorded, in the speaker's own time zone, so "tomorrow" means their tomorrow. */
+  recordedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 
 export function buildApp(config: Config, deps: AppDeps = {}) {
@@ -33,7 +35,9 @@ export function buildApp(config: Config, deps: AppDeps = {}) {
           app.log.warn(`whisper.cpp failed on the GPU, retrying on the CPU. Set WHISPER_GPU=false in .env to skip the GPU. (${err.message.split("\n")[0]})`),
       }));
   const cleaner = deps.clean ? null : createCleaner(config);
-  const clean = deps.clean ?? (cleaner ? (words: string[], mustKeep: number[]) => cleanAndCheck(words, cleaner, mustKeep) : null);
+  const clean =
+    deps.clean ??
+    (cleaner ? (words: string[], mustKeep: number[], recordedOn?: string) => cleanAndCheck(words, cleaner, mustKeep, recordedOn) : null);
 
   app.register(multipart, { limits: { fileSize: config.maxUploadBytes, files: 1 } });
 
@@ -69,9 +73,9 @@ export function buildApp(config: Config, deps: AppDeps = {}) {
       });
     }
     const body = CleanBody.safeParse(req.body);
-    if (!body.success) return reply.code(400).send({ error: "Send {words: string[], mustKeep?: number[]}." });
+    if (!body.success) return reply.code(400).send({ error: "Send {words: string[], mustKeep?: number[], recordedOn?: \"YYYY-MM-DD\"}." });
     try {
-      return await clean(body.data.words, body.data.mustKeep);
+      return await clean(body.data.words, body.data.mustKeep, body.data.recordedOn);
     } catch (err) {
       req.log.error(err);
       const message = cleaner ? cleanupErrorMessage(err, cleaner.provider, cleaner.model) : err instanceof Error ? err.message : "Cleanup failed.";

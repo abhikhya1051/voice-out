@@ -1,5 +1,6 @@
 import { cutMap } from "../clean/normalize.js";
 import type { Cleanup, CutReason, NoteItem } from "../clean/schema.js";
+import { derivedValues, type ResolvedDate } from "../dates/resolve.js";
 
 /**
  * The "never made up" check. Plain code, no AI: every hard fact in the clean note
@@ -169,7 +170,7 @@ function sourceValues(words: string[]): string[][] {
   return values;
 }
 
-export function checkFacts(words: string[], cleanup: Cleanup): FactCheck {
+export function checkFacts(words: string[], cleanup: Cleanup, dates: ResolvedDate[] = []): FactCheck {
   const reasons: (CutReason | null)[] = cutMap(cleanup.cuts, words.length);
   const values = sourceValues(words);
   const sourceCapitalized = new Set(words.filter((w) => /^[A-Z]/.test(w)).map(norm));
@@ -206,6 +207,9 @@ export function checkFacts(words: string[], cleanup: Cleanup): FactCheck {
         if (usableNear.length || (usable.length && !correctedNear.length)) {
           supported++;
           (usableNear.length ? usableNear : usable).forEach((i) => factWords.add(i));
+        } else if (dates.some((d) => d.to >= lo && d.from <= hi && derivedValues(d).includes(fact.value))) {
+          // Not said, but worked out by code from a date phrase in this part of the memo ("the next day" -> Saturday)
+          supported++;
         } else if (all.some(isCorrected)) {
           flags.push({ kind, index, fact: fact.label, problem: "corrected", message: `You corrected "${fact.label}" while talking, but the note still uses it.` });
         } else if (all.length) {

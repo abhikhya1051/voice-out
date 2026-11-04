@@ -41,4 +41,9 @@ export const SAMPLE_TOOL_INPUT = {
     { text: "Email Marcus about the budget numbers", due: "by tomorrow", from: 43, to: 54 },
     { text: "Go back to the coffee place on Fifth", from: 62, to: 69 },
   ],
+  dates: [
+    { from: 22, to: 22 },
+    { from: 25, to: 25 },
+    { from: 54, to: 54 },
+  ],
 };

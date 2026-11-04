@@ -15,6 +15,7 @@ export const CASES: EvalCase[] = [
     transcript: "Call the dentist on [Tuesday, no wait,] Wednesday at three to [uh,] move the cleaning.",
     mustSay: ["dentist", "Wednesday", "(3|three)"],
     mustNotSay: ["Tuesday"],
+    dates: { Wednesday: "2026-11-04" },
   },
   {
     name: "like-as-a-verb",
@@ -73,6 +74,15 @@ export const CASES: EvalCase[] = [
       "[Yeah, so] this is a test. [So,] Adam and Priya have to meet on [Thursday. No, scratch that.] They'll be meeting on Friday because Adam's got a play practice on Thursday [and they have to plan for Leila's birthday party. Oh, no, no, no, not the birthday party.] They have to plan for Leila's graduation day party. They're throwing a huge surprise in Adam's backyard. [So,] they have to decide the theme of the party and how many people to invite. [So, yeah,] this has to be decided ASAP on Friday and the invites should be sent out the next day.",
     mustSay: ["Adam", "Priya", "Friday", "practice", "graduation", "backyard", "theme", "invite"],
     mustNotSay: ["birthday", "meet(ing)? on Thursday"],
+    dates: { Friday: "2026-11-06", "the next day": "2026-11-07" },
+  },
+  {
+    name: "relative-dates",
+    tests: "Days relative to the recording and to each other",
+    transcript:
+      "[Okay, um,] the proposal is due tomorrow, [and uh,] the review is next Friday, and then we present it the day after. [Oh, and] I'm out the day after tomorrow.",
+    mustSay: ["proposal", "tomorrow", "review", "present"],
+    dates: { tomorrow: "2026-11-04", "next Friday": "2026-11-13", "the day after": "2026-11-14", "the day after tomorrow": "2026-11-05" },
   },
   {
     name: "number-correction",
