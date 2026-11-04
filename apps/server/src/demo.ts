@@ -30,5 +30,5 @@ export function demoTranscript(durationMs: number): Transcript {
 
 export function demoClean(words: string[], mustKeep: number[], recordedOn: string = localToday()): CleanResult {
   const cleanup = normalizeCleanup(SAMPLE_TOOL_INPUT as Cleanup, words.length, mustKeep);
-  return { ...checkCleanup(words, cleanup, recordedOn), model: "demo (recorded response)", elapsedMs: 1400 };
+  return { ...checkCleanup(words, cleanup, recordedOn, mustKeep), model: "demo (recorded response)", elapsedMs: 1400 };
 }

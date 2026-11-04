@@ -8,7 +8,12 @@ const within = (d: Span, item: Span) => d.from >= item.from && d.to <= item.to;
  */
 export function placeDates(result: CleanResult): Map<string, ResolvedDate[]> {
   const placed = new Map<string, ResolvedDate[]>();
-  const put = (key: string, d: ResolvedDate) => placed.set(key, [...(placed.get(key) ?? []), d]);
+  const put = (key: string, d: ResolvedDate) => {
+    const here = placed.get(key) ?? [];
+    // "Friday ... Friday" in one line needs only one "Friday → Fri, Nov 6"
+    if (here.some((x) => x.date === d.date && x.phrase.toLowerCase() === d.phrase.toLowerCase())) return;
+    placed.set(key, [...here, d]);
+  };
   for (const d of result.dates ?? []) {
     const todo = result.cleanup.todos.findIndex((t) => within(d, t));
     if (todo >= 0) {

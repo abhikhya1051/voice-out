@@ -27,6 +27,20 @@ describe("placeDates", () => {
   });
 });
 
+describe("placeDates dedupe", () => {
+  it("shows a repeated date once per line", () => {
+    const fri = { from: 2, to: 2, phrase: "Friday", date: "2026-11-06", label: "Fri, Nov 6", basis: "b" };
+    const result = {
+      cleanup: { title: "t", type: "memo", cuts: [], keyPoints: [], todos: [], sentences: [{ text: "s", from: 0, to: 20 }] },
+      check: { checked: 0, supported: 0, flags: [], factWords: [] },
+      dates: [fri, { ...fri, from: 9, to: 9 }],
+      model: "m",
+      elapsedMs: 1,
+    } satisfies CleanResult;
+    expect(placeDates(result).get("sentence-0")).toHaveLength(1);
+  });
+});
+
 describe("localYmd", () => {
   it("uses the local calendar day", () => {
     expect(localYmd(new Date(2026, 10, 3, 23, 30))).toBe("2026-11-03");

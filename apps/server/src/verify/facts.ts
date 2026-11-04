@@ -76,8 +76,8 @@ export function norm(word: string): string {
   return word
     .toLowerCase()
     .replace(/[’‘]/g, "'")
-    .replace(/'s$/, "")
-    .replace(/[^a-z0-9']/g, "")
+    .replace(/[^a-z0-9']/g, "") // punctuation first, so "Sunena's," loses its comma...
+    .replace(/'s$/, "") // ...before the possessive comes off
     .replace(/'/g, "");
 }
 
@@ -313,5 +313,7 @@ export function detectCorrections(words: string[], sourceCapitalized: Set<string
       for (let j = Math.max(0, i - 15); j < i; j++) if (echoes.includes(n[j]!)) corrected.add(j);
     }
   }
-  return { corrected, correctiveNegations };
+  /** Corrected names, days and numbers: the words the transcript should show as struck. */
+  const correctedFacts = [...corrected].filter(isFact).sort((a, b) => a - b);
+  return { corrected, correctiveNegations, correctedFacts };
 }
