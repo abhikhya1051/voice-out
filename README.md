@@ -9,7 +9,7 @@ Talk into your mic the way you'd leave yourself a voice memo, fillers, false sta
 </p>
 
 <p align="center">
-  <a href="docs/voice-out-demo.mp4"><b>▶ Watch the 1-minute walkthrough</b></a>
+  <a href="docs/voice-out-demo.mp4"><b>▶ Watch the walkthrough (1:14, with sound)</b></a>
   ·
   <a href="#try-it-in-one-command">Try it in one command</a>
   ·
@@ -57,6 +57,25 @@ How this compares to well-known tools (as of November 2026):
 - **[Superwhisper](https://superwhisper.com/)** is a highly configurable Mac transcription tool with local models and custom AI modes.
 
 Those tools optimize for **speed and polish**. Voice Out optimizes for **trust**: it's for notes you'll act on later, where *"did I actually say that?"* has to have an answer. (Comparison based on each product's public descriptions; see [AudioPen's own comparison](https://www.audiopen.ai/blog/wispr-flow-vs-superwhisper-vs-audiopen), which is written by a competitor and worth reading with that in mind.)
+
+## Example
+
+A real 31-second memo (the one in the video and in [`demo/`](demo)), recorded on Wednesday, November 4:
+
+> **What Whisper heard:** Okay, um, so, quick note about Maya's surprise party. We are all meeting at Jordan's place on, um, Thursday. No, wait, Friday at 6. Jordan's got the keys and, like, the decorations. Sam might not make it. He's traveling. I need to order the cake by tomorrow, and the invites go out the next day. The budget is, uh, 200, no, sorry, 300 dollars. And, you know, don't tell Maya, obviously.
+
+> **The note Gemini wrote:** Quick note about Maya's surprise party. We are all meeting at Jordan's place on Friday at 6. Jordan's got the keys and the decorations. Sam might not make it as he's traveling. I need to order the cake by tomorrow, and the invites go out the next day. The budget is 300 dollars. Don't tell Maya, obviously.
+
+**What the code checked:**
+
+| | |
+| --- | --- |
+| Cut, with reasons | `Okay, um, so,` `um,` `like,` `uh,` `you know,` (filler) · `Thursday.` `No, wait,` `200,` `no, sorry,` (correction) |
+| Facts verified against kept words | Maya · Jordan · Friday · 6 · Sam · tomorrow · 300 |
+| Kept on purpose | "Sam **might not** make it" (uncertainty) · "**Don't** tell Maya" (negation) |
+| Dates worked out | Friday → **Fri, Nov 6** · tomorrow → **Thu, Nov 5** · the next day (after tomorrow) → **Fri, Nov 6** |
+| To-dos | Order the cake *by tomorrow → Thu, Nov 5* · Send out invites *the next day → Fri, Nov 6* |
+| Receipt | **14 facts checked against your words · 0 invented** |
 
 ## Screenshots
 

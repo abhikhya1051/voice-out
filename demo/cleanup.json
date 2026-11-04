@@ -1,0 +1,133 @@
+{
+  "recordedOn": "2026-11-04",
+  "model": "gemini-3.1-flash-lite",
+  "cleanup": {
+    "title": "Maya's surprise party",
+    "type": "memo",
+    "cuts": [
+      {
+        "from": 0,
+        "to": 2,
+        "reason": "filler"
+      },
+      {
+        "from": 17,
+        "to": 17,
+        "reason": "filler"
+      },
+      {
+        "from": 18,
+        "to": 18,
+        "reason": "self_correction"
+      },
+      {
+        "from": 19,
+        "to": 20,
+        "reason": "self_correction"
+      },
+      {
+        "from": 29,
+        "to": 29,
+        "reason": "filler"
+      },
+      {
+        "from": 58,
+        "to": 58,
+        "reason": "filler"
+      },
+      {
+        "from": 59,
+        "to": 59,
+        "reason": "self_correction"
+      },
+      {
+        "from": 60,
+        "to": 61,
+        "reason": "self_correction"
+      },
+      {
+        "from": 65,
+        "to": 66,
+        "reason": "filler"
+      }
+    ],
+    "sentences": [
+      {
+        "text": "Quick note about Maya's surprise party.",
+        "from": 3,
+        "to": 8
+      },
+      {
+        "text": "We are all meeting at Jordan's place on Friday at 6.",
+        "from": 9,
+        "to": 23
+      },
+      {
+        "text": "Jordan's got the keys and the decorations.",
+        "from": 24,
+        "to": 31
+      },
+      {
+        "text": "Sam might not make it as he's traveling.",
+        "from": 32,
+        "to": 38
+      },
+      {
+        "text": "I need to order the cake by tomorrow, and the invites go out the next day.",
+        "from": 39,
+        "to": 54
+      },
+      {
+        "text": "The budget is 300 dollars.",
+        "from": 55,
+        "to": 63
+      },
+      {
+        "text": "Don't tell Maya, obviously.",
+        "from": 67,
+        "to": 70
+      }
+    ],
+    "keyPoints": [
+      {
+        "text": "Meeting at Jordan's place on Friday at 6.",
+        "from": 9,
+        "to": 23
+      },
+      {
+        "text": "Budget is 300 dollars.",
+        "from": 55,
+        "to": 63
+      }
+    ],
+    "todos": [
+      {
+        "text": "Order the cake.",
+        "due": "by tomorrow",
+        "from": 39,
+        "to": 46
+      },
+      {
+        "text": "Send out invites.",
+        "from": 48,
+        "to": 54
+      }
+    ],
+    "dates": [
+      {
+        "from": 21,
+        "to": 21
+      },
+      {
+        "from": 46,
+        "to": 46
+      },
+      {
+        "from": 52,
+        "to": 54,
+        "anchorFrom": 46,
+        "anchorTo": 46
+      }
+    ]
+  }
+}
